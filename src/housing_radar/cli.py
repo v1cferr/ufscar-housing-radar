@@ -14,7 +14,7 @@ from housing_radar.config import get_settings
 from housing_radar.db import init_db, session_scope
 from housing_radar.models import Listing
 from housing_radar.pipeline.run import enrich as run_enrich
-from housing_radar.pipeline.run import ingest, run_all
+from housing_radar.pipeline.run import ingest
 
 app = typer.Typer(
     help="Pipeline para coletar, ranquear e servir apartamentos próximos à UFSCar.",
@@ -49,19 +49,29 @@ def import_csv(
     console.print(f"[green]CSV importado:[/green] {stats}")
 
 
+_SOURCES_HELP = "all, " + ", ".join(REMOTE_COLLECTORS)
+
+
+def _resolve_sources(source: str) -> list[str]:
+    if source == "all":
+        return list(REMOTE_COLLECTORS)
+    if source not in REMOTE_COLLECTORS:
+        raise typer.BadParameter(f"Fonte desconhecida: {source}. Use: {_SOURCES_HELP}")
+    return [source]
+
+
 @app.command()
 def collect(
-    source: str = typer.Argument("olx", help=f"Fonte: {', '.join(REMOTE_COLLECTORS)}"),
+    source: str = typer.Argument("all", help=f"Fonte: {_SOURCES_HELP}"),
     max_pages: int | None = typer.Option(None, "--max-pages", "-p"),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
-    """Coleta de uma fonte remota e faz upsert no banco (sem enriquecer)."""
+    """Coleta de uma ou todas as fontes remotas e faz upsert no banco (sem enriquecer)."""
     _setup_logging(verbose)
-    if source not in REMOTE_COLLECTORS:
-        raise typer.BadParameter(f"Fonte desconhecida: {source}")
     init_db()
-    stats = ingest(REMOTE_COLLECTORS[source](), max_pages=max_pages)
-    console.print(f"[green]{source} coletado:[/green] {stats}")
+    for name in _resolve_sources(source):
+        stats = ingest(REMOTE_COLLECTORS[name](), max_pages=max_pages)
+        console.print(f"[green]{name} coletado:[/green] {stats}")
 
 
 @app.command()
@@ -79,17 +89,18 @@ def enrich(
 
 @app.command()
 def run(
-    source: str = typer.Argument("olx", help=f"Fonte: {', '.join(REMOTE_COLLECTORS)}"),
+    source: str = typer.Argument("all", help=f"Fonte: {_SOURCES_HELP}"),
     max_pages: int | None = typer.Option(None, "--max-pages", "-p"),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
-    """Pipeline completo de uma fonte: coleta + enriquecimento."""
+    """Pipeline completo: coleta de uma/todas as fontes + enriquecimento."""
     _setup_logging(verbose)
-    if source not in REMOTE_COLLECTORS:
-        raise typer.BadParameter(f"Fonte desconhecida: {source}")
     init_db()
-    stats = run_all(REMOTE_COLLECTORS[source](), max_pages=max_pages)
-    console.print(f"[green]Pipeline concluído:[/green] {stats}")
+    for name in _resolve_sources(source):
+        stats = ingest(REMOTE_COLLECTORS[name](), max_pages=max_pages)
+        console.print(f"[green]{name} coletado:[/green] {stats}")
+    enrich_stats = run_enrich()
+    console.print(f"[green]Enriquecimento:[/green] {enrich_stats}")
 
 
 @app.command("export")

@@ -55,6 +55,13 @@ def test_score_rewards_proximity_and_price():
     assert s1 > s2
 
 
+def test_score_penalizes_implausible_price():
+    # R$ 3.200 "à venda" é quase certamente aluguel/erro -> subscore de preço 0.
+    suspect = normalize(RawListing(source="m", source_id="r", price=3200, bedrooms=2))
+    _, breakdown = score_listing(suspect)
+    assert breakdown["subscores"]["price"] == 0.0
+
+
 def test_score_handles_missing_data():
     listing = normalize(RawListing(source="m", source_id="x", price=300000))
     score, breakdown = score_listing(listing)

@@ -22,8 +22,13 @@ de **Caddy** (TLS + domínio).
 coletar → normalizar → deduplicar → geocodar → tempo até a UFSCar → score → exportar/servir
 ```
 
-- **Coletores plugáveis** (`src/housing_radar/collectors/`): `manual` (CSV) e `olx`
-  (best-effort). ZAP/VivaReal/QuintoAndar entram depois — a interface já está pronta.
+- **Coletores plugáveis** (`src/housing_radar/collectors/`):
+  - `manual` — CSV (base confiável, ToS-safe);
+  - `cardinali` — imobiliária local, HTML, paginação `?pag=N` (acervo grande);
+  - `roca` / `iplano` / `top` — plataforma **MSYS Imob** (um coletor genérico,
+    `msys.py`, cobre as três e já traz lat/lon, dispensando geocoding);
+  - `olx` — best-effort (a OLX ignora o filtro de região na URL; rende pouco).
+  - `all` — roda todas as fontes remotas de uma vez.
 - **Tempo até a UFSCar**: estimativa por distância + velocidade média (a pé/bici/carro)
   sem nenhuma chave; fica preciso por modal se você setar `HR_ORS_API_KEY`
   (OpenRouteService). Ônibus exige GTFS/Google e está no roadmap.
@@ -40,8 +45,8 @@ uv run housing-radar import-csv data/seed/listings_example.csv
 uv run housing-radar enrich        # geocode (se faltar) + tempo até UFSCar + score
 uv run housing-radar stats         # ranking no terminal
 
-# 2) Coletar da OLX (best-effort) e rodar o pipeline completo
-uv run housing-radar run olx -p 3
+# 2) Coletar das imobiliárias locais + rodar o pipeline completo (todas as fontes)
+uv run housing-radar run all -p 3       # ou: run cardinali / run roca / ...
 
 # 3) Exportar planilha para mandar pra avaliação
 uv run housing-radar export --fmt xlsx     # -> exports/apartamentos_ufscar.xlsx
@@ -58,9 +63,9 @@ Copie `.env.example` para `.env` para ajustar coordenadas da UFSCar, chave do OR
 |---|---|
 | `init-db` | Cria as tabelas |
 | `import-csv PATH` | Importa anúncios manuais de um CSV |
-| `collect [olx]` | Coleta de uma fonte remota (sem enriquecer) |
+| `collect [all\|cardinali\|roca\|iplano\|top\|olx]` | Coleta de uma/todas as fontes (sem enriquecer) |
 | `enrich` | Geocoda, calcula tempo até a UFSCar e (re)calcula o score |
-| `run [olx]` | Pipeline completo de uma fonte (coleta + enrich) |
+| `run [all\|...]` | Pipeline completo (coleta + enrich) |
 | `export --fmt xlsx\|csv` | Exporta o ranking para planilha |
 | `stats --top N` | Resumo + melhores anúncios |
 | `serve` | Sobe a API/dashboard (uvicorn) |
@@ -78,9 +83,11 @@ stack self-contained com Caddy junto: `docker compose --profile edge up -d --bui
 
 ## Roadmap
 
-- [ ] Coletores ZAP/VivaReal/QuintoAndar + imobiliárias locais de São Carlos
-- [ ] Mapear bairros mais próximos da UFSCar e usar como referência
+- [x] Coletores de imobiliárias locais de São Carlos (Cardinali + plataforma MSYS)
+- [ ] **Acervo completo MSYS** via sitemap (`/sitemaps/propertys.xml`) — hoje só o seed SSR (~12/imob)
+- [ ] **Cardinali:** abrir páginas de detalhe p/ preencher área/bairro faltantes (~30% dos cards)
+- [ ] ZAP/VivaReal/QuintoAndar e OLX (location real) — sob demanda, se faltar volume
 - [ ] Tempo de ônibus (GTFS São Carlos ou Google Distance Matrix)
-- [ ] Calibrar pesos do score com avaliações reais
+- [ ] Calibrar pesos do score com avaliações reais (com a mãe corretora)
 - [ ] Migrar SQLite → Postgres quando o volume crescer
 - [ ] Alertas de novos anúncios acima de um score

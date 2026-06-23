@@ -37,6 +37,9 @@ class ScoreConfig:
             "parking": 0.10,
         }
     )
+    # Preço de venda abaixo disto é implausível p/ apartamento em São Carlos —
+    # quase sempre é aluguel mal rotulado ou erro de dado. Subscore de preço = 0.
+    price_floor: float = 50_000
     # Âncoras (melhor, pior).
     dist_km_good_bad: tuple[float, float] = (1.5, 8.0)
     price_good_bad: tuple[float, float] = (250_000, 600_000)
@@ -57,7 +60,10 @@ def score_listing(listing: Listing, config: ScoreConfig | None = None) -> tuple[
     if listing.dist_ufscar_km is not None:
         subs["proximity"] = _lerp(listing.dist_ufscar_km, *cfg.dist_km_good_bad)
     if listing.price is not None:
-        subs["price"] = _lerp(listing.price, *cfg.price_good_bad)
+        if listing.price < cfg.price_floor:
+            subs["price"] = 0.0  # implausível p/ venda (provável aluguel/erro)
+        else:
+            subs["price"] = _lerp(listing.price, *cfg.price_good_bad)
     if listing.area_m2 is not None:
         subs["area"] = _lerp(listing.area_m2, *cfg.area_good_bad)
     if listing.condo_fee is not None:
