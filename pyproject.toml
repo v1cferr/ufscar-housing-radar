@@ -1,0 +1,50 @@
+[project]
+name = "ufscar-housing-radar"
+version = "0.1.0"
+description = "Pipeline e serviço para coletar, analisar e ranquear apartamentos próximos à UFSCar (São Carlos)."
+readme = "README.md"
+requires-python = ">=3.13"
+authors = [{ name = "Victor Ferreira", email = "victor.ferreira@fai.ufscar.br" }]
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "httpx>=0.28",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.7",
+    "sqlmodel>=0.0.22",
+    "typer>=0.15",
+    "rich>=13.9",
+    "geopy>=2.4",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.3",
+    "jinja2>=3.1",
+    "openpyxl>=3.1",
+]
+
+[project.optional-dependencies]
+# Routing real por modal (a pé/bici/carro). Opcional: `uv sync --extra ors`.
+ors = ["openrouteservice>=2.3"]
+
+[project.scripts]
+housing-radar = "housing_radar.cli:app"
+
+[dependency-groups]
+dev = ["ruff>=0.8", "pytest>=8.3"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/housing_radar"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

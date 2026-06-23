@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# uv
+# (uv.lock É versionado — não ignorar)
+
+# Dados locais / banco
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+exports/
+
+# Ambiente
+.env
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store

@@ -1,0 +1,7 @@
+source_id,url,title,price,condo_fee,area_m2,bedrooms,bathrooms,parking_spots,address,neighborhood,city,lat,lon,description
+ex-001,,Apto 2 dorm Santa Felícia perto da UFSCar,295000,420,68,2,1,1,"Rua Miguel Joao, Santa Felícia",Santa Felícia,São Carlos,-21.9905,-47.8730,Reformado a poucos minutos do campus
+ex-002,,Apartamento 3 quartos Parque Arnold Schimidt,360000,520,82,3,2,1,"Av. Comendador Alfredo Maffei, Parque Arnold Schimidt",Parque Arnold Schimidt,São Carlos,-21.9930,-47.8770,Suíte e varanda
+ex-003,,Studio compacto Jardim Macarengo,185000,300,38,1,1,0,"Rua Episcopal, Jardim Macarengo",Jardim Macarengo,São Carlos,-22.0000,-47.8850,Ideal estudante
+ex-004,,Apto 2 dorm com vaga Jardim Cardinalli,275000,380,62,2,1,1,"Rua Padre Teixeira, Jardim Cardinalli",Jardim Cardinalli,São Carlos,-21.9960,-47.8680,Próximo a mercado
+ex-005,,Cobertura 3 dorm Centro São Carlos,520000,750,120,3,2,2,"Rua General Osorio, Centro",Centro,São Carlos,-22.0170,-47.8900,Ampla mas mais distante do campus
+ex-006,,Apartamento 2 quartos Jardim Lutfalla,240000,350,58,2,1,1,"Rua Santa Cruz, Jardim Lutfalla",Jardim Lutfalla,São Carlos,-22.0050,-47.8800,Andar alto bem ventilado

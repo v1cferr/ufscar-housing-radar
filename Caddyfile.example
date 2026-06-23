@@ -1,0 +1,21 @@
+# Snippet para o seu Caddy. Ajuste o subdomínio e o upstream conforme seu setup.
+#
+# Caso A — Caddy central no host (recomendado pelo que você descreveu):
+#   adicione este bloco ao seu Caddyfile existente. O app escuta em 127.0.0.1:8000.
+#
+# Caso B — stack self-contained (docker compose --profile edge up):
+#   o upstream vira o nome do serviço: app:8000 (já é o default aqui dentro da rede).
+
+radar.v1cferr.dev {
+	encode zstd gzip
+
+	# Caso A (host): descomente a linha abaixo e comente a do "app:8000".
+	# reverse_proxy 127.0.0.1:8000
+
+	# Caso B (compose com profile edge):
+	reverse_proxy app:8000
+
+	log {
+		output stdout
+	}
+}

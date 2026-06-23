@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UFSCar Housing Radar</title>
+  <style>
+    :root { --bg:#0f1115; --card:#181b22; --line:#272b34; --txt:#e6e8ec; --mut:#9aa3b2; --accent:#4f8cff; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--txt);
+           font:15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    header { padding:24px 20px 8px; }
+    h1 { margin:0; font-size:22px; }
+    .sub { color:var(--mut); font-size:13px; margin-top:4px; }
+    .wrap { padding:16px 20px 48px; }
+    form { display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin:12px 0 20px; }
+    form label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--mut); }
+    input { background:var(--card); border:1px solid var(--line); color:var(--txt);
+            border-radius:8px; padding:8px 10px; min-width:140px; }
+    button { background:var(--accent); color:#fff; border:0; border-radius:8px;
+             padding:9px 16px; font-weight:600; cursor:pointer; }
+    .tablewrap { overflow-x:auto; border:1px solid var(--line); border-radius:12px; }
+    table { border-collapse:collapse; width:100%; min-width:880px; }
+    th, td { padding:10px 12px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
+    th { color:var(--mut); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+    tr:last-child td { border-bottom:0; }
+    td.num { text-align:right; font-variant-numeric:tabular-nums; }
+    .score { display:inline-block; min-width:42px; text-align:center; font-weight:700;
+             padding:3px 8px; border-radius:999px; background:#23304a; color:#cfe0ff; }
+    .score.high { background:#1f3d2b; color:#bff5cf; }
+    .score.low { background:#3d2323; color:#f5c9c9; }
+    a { color:var(--accent); text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    .empty { color:var(--mut); padding:40px; text-align:center; }
+    .muted { color:var(--mut); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🏢 UFSCar Housing Radar</h1>
+    <div class="sub">Apartamentos próximos à {{ destination }} — ordenados por score · {{ listings|length }} resultados</div>
+  </header>
+  <div class="wrap">
+    <form method="get">
+      <label>Preço máx. (R$)
+        <input type="number" name="max_price" value="{{ filters.max_price or '' }}" step="10000">
+      </label>
+      <label>Quartos mín.
+        <input type="number" name="min_bedrooms" value="{{ filters.min_bedrooms or '' }}" min="0">
+      </label>
+      <label>Bairro
+        <input type="text" name="neighborhood" value="{{ filters.neighborhood or '' }}" placeholder="ex.: Santa Felícia">
+      </label>
+      <button type="submit">Filtrar</button>
+    </form>
+
+    {% if listings %}
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Score</th><th>Título</th><th>Bairro</th>
+            <th>Preço</th><th>Cond.</th><th>m²</th><th>Q</th><th>Vagas</th>
+            <th>Dist.</th><th>🚶</th><th>🚲</th><th>🚗</th><th>Fonte</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in listings %}
+          <tr>
+            <td>
+              {% set s = l.score or 0 %}
+              <span class="score {{ 'high' if s >= 70 else 'low' if s < 45 else '' }}">
+                {{ '%.0f'|format(s) if l.score is not none else '—' }}
+              </span>
+            </td>
+            <td>{% if l.url %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.title or 'Sem título' }}</a>{% else %}{{ l.title or 'Sem título' }}{% endif %}</td>
+            <td>{{ l.neighborhood or '—' }}</td>
+            <td class="num">{{ '{:,.0f}'.format(l.price).replace(',', '.') if l.price else '—' }}</td>
+            <td class="num">{{ '{:,.0f}'.format(l.condo_fee).replace(',', '.') if l.condo_fee else '—' }}</td>
+            <td class="num">{{ '%.0f'|format(l.area_m2) if l.area_m2 else '—' }}</td>
+            <td class="num">{{ l.bedrooms if l.bedrooms is not none else '—' }}</td>
+            <td class="num">{{ l.parking_spots if l.parking_spots is not none else '—' }}</td>
+            <td class="num">{{ '%.1f km'|format(l.dist_ufscar_km) if l.dist_ufscar_km else '—' }}</td>
+            <td class="num">{{ '%.0f'|format(l.time_walk_min) if l.time_walk_min else '—' }}</td>
+            <td class="num">{{ '%.0f'|format(l.time_bike_min) if l.time_bike_min else '—' }}</td>
+            <td class="num">{{ '%.0f'|format(l.time_car_min) if l.time_car_min else '—' }}</td>
+            <td class="muted">{{ l.source }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty">Nenhum anúncio ainda. Rode <code>housing-radar run</code> ou importe um CSV com <code>housing-radar import-csv</code>.</div>
+    {% endif %}
+  </div>
+</body>
+</html>
