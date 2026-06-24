@@ -118,6 +118,7 @@ class MSYSCollector(Collector):
             url=url,
             title=d.get("desTitleSite"),
             price=d.get("valSales"),
+            rent_price=d.get("valLocation") or None,  # aluguel, quando também loca
             condo_fee=d.get("valCondominium") or None,
             area_m2=_f(d.get("prop_char_2")),
             bedrooms=d.get("prop_char_5"),

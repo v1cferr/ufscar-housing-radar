@@ -184,6 +184,7 @@
   {# ---- Macros de célula (formatação + unidade + fallback) ---- #}
   {% macro money(v) %}{% if v %}R$&nbsp;{{ v|int_br }}{% else %}<span class="dash">—</span>{% endif %}{% endmacro %}
   {% macro money_mo(v) %}{% if v %}R$&nbsp;{{ v|int_br }}<span class="title-sub">/mês</span>{% else %}<span class="dash">—</span>{% endif %}{% endmacro %}
+  {% macro rent_cell(price, rent) %}{% if rent %}R$&nbsp;{{ rent|int_br }}<span class="title-sub">/mês</span>{% if price and price >= 50000 %}<div class="title-sub" title="Anos de aluguel que somam o preço de venda (preço ÷ aluguel anual). Menor = comprar compensa mais.">≈ {{ (price / (rent * 12))|dec_br(1) }} anos</div>{% endif %}{% else %}<span class="dash">—</span>{% endif %}{% endmacro %}
   {% macro area(v) %}{% if v %}{{ v|round|int }}&nbsp;m²{% else %}<span class="dash">—</span>{% endif %}{% endmacro %}
   {% macro km(v) %}{% if v %}{{ v|dec_br(1) }}&nbsp;km{% else %}<span class="dash">—</span>{% endif %}{% endmacro %}
   {% macro mins(v, real) %}{% if v %}{{ v|round|int }}&nbsp;min{% if real %}<span class="real" title="tempo real (OpenRouteService)">•</span>{% endif %}{% else %}<span class="dash">—</span>{% endif %}{% endmacro %}
@@ -265,7 +266,7 @@
       <span><span class="dot" style="background:var(--hi-tx)"></span>Score ≥ 70 (ótimo)</span>
       <span><span class="dot" style="background:var(--mid-tx)"></span>45–69 (médio)</span>
       <span><span class="dot" style="background:var(--lo-tx)"></span>&lt; 45 (fraco)</span>
-      <span class="pill">Score 0–100: proximidade · preço · área · condomínio · quartos · vagas</span>
+      <span class="pill">Score 0–100: proximidade · preço · área · condomínio · quartos · vagas · custo-benefício (preço/aluguel)</span>
       <span><span class="real">•</span> tempo real (ORS); sem marca = estimativa</span>
     </div>
 
@@ -279,6 +280,7 @@
               <th>Apartamento</th>
               <th>Bairro</th>
               <th class="num">Preço</th>
+              <th class="num">Aluguel</th>
               <th class="num">Condomínio</th>
               <th class="num">Área</th>
               <th class="num">Quartos</th>
@@ -306,6 +308,7 @@
               </td>
               <td data-label="Bairro">{{ l.neighborhood or '—' }}</td>
               <td class="num" data-label="Preço">{{ money(l.price) }}</td>
+              <td class="num" data-label="Aluguel">{{ rent_cell(l.price, l.rent_price) }}</td>
               <td class="num" data-label="Condomínio">{{ money_mo(l.condo_fee) }}</td>
               <td class="num" data-label="Área">{{ area(l.area_m2) }}</td>
               <td class="num" data-label="Quartos">{{ intv(l.bedrooms) }}</td>

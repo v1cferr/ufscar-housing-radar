@@ -15,7 +15,12 @@ from housing_radar.config import get_settings
 from housing_radar.db import init_db, session_scope
 from housing_radar.models import Listing
 from housing_radar.pipeline.run import enrich as run_enrich
-from housing_radar.pipeline.run import ingest, refine_routes_ors
+from housing_radar.pipeline.run import (
+    backfill_rent_from_raw,
+    ingest,
+    refine_routes_ors,
+    rescore_all,
+)
 
 app = typer.Typer(
     help="Pipeline para coletar, ranquear e servir apartamentos próximos à UFSCar.",
@@ -129,6 +134,21 @@ def refine_ors_cmd(
     init_db()
     stats = refine_routes_ors(limit=limit, delay=delay)
     console.print(f"[green]Refino ORS:[/green] {stats}")
+
+
+@app.command()
+def rescore(
+    backfill_rent: bool = typer.Option(
+        False, "--backfill-rent", help="Antes, preenche aluguel (valLocation) de registros antigos"
+    ),
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
+) -> None:
+    """Recalcula só o score (sem mexer em geocode/tempo — preserva o refino ORS)."""
+    _setup_logging(verbose)
+    init_db()
+    if backfill_rent:
+        console.print(f"[green]Aluguel preenchido:[/green] {backfill_rent_from_raw()}")
+    console.print(f"[green]Score recalculado:[/green] {rescore_all()}")
 
 
 @app.command()

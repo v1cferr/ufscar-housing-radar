@@ -82,6 +82,7 @@ def make_dedupe_key(raw: RawListing, price: float | None, area: float | None) ->
 
 def normalize(raw: RawListing) -> Listing:
     price = parse_money(raw.price)
+    rent_price = parse_money(raw.rent_price)
     condo_fee = parse_money(raw.condo_fee)
     area = parse_float(raw.area_m2)
     lat = parse_float(raw.lat)
@@ -94,6 +95,7 @@ def normalize(raw: RawListing) -> Listing:
         dedupe_key=make_dedupe_key(raw, price, area),
         title=raw.title.strip() if raw.title else None,
         price=price,
+        rent_price=rent_price,
         condo_fee=condo_fee,
         area_m2=area,
         bedrooms=parse_int(raw.bedrooms),

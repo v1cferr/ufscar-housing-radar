@@ -33,7 +33,8 @@ coletar → normalizar → deduplicar → geocodar → tempo até a UFSCar → s
   sem nenhuma chave; fica preciso por modal se você setar `HR_ORS_API_KEY`
   (OpenRouteService). Ônibus exige GTFS/Google e está no roadmap.
 - **Score 0–100** transparente e configurável (`pipeline/score.py`): proximidade, preço,
-  área, condomínio, quartos e vagas, com pesos e âncoras calibráveis.
+  área, condomínio, quartos, vagas e um bônus leve de custo-benefício (relação
+  preço/aluguel, quando o anúncio também loca), com pesos e âncoras calibráveis.
 
 ## Quickstart
 
@@ -74,6 +75,7 @@ Copie `.env.example` para `.env` para ajustar coordenadas da UFSCar, chave do OR
 | `import-csv PATH` | Importa anúncios manuais de um CSV |
 | `collect [all\|cardinali\|roca\|iplano\|top\|olx]` | Coleta de uma/todas as fontes (sem enriquecer) |
 | `enrich` | Geocoda, calcula tempo até a UFSCar (estimativa) e (re)calcula o score |
+| `rescore [--backfill-rent]` | Recalcula só o score (preserva tempos do ORS); opcional: preenche aluguel de registros antigos |
 | `refine-ors --limit N` | Refina os top-N por score com tempos reais do ORS (cota-aware) |
 | `run [all\|...]` | Pipeline completo (coleta + enrich) |
 | `export --fmt xlsx\|csv` | Exporta o ranking para planilha |

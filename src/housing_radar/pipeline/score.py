@@ -35,6 +35,9 @@ class ScoreConfig:
             "condo_fee": 0.10,
             "bedrooms": 0.10,
             "parking": 0.10,
+            # Bônus LEVE de custo-benefício (relação preço/aluguel). Só conta quando
+            # o anúncio também informa aluguel; senão o peso é renormalizado fora.
+            "value": 0.08,
         }
     )
     # Preço de venda abaixo disto é implausível p/ apartamento em São Carlos —
@@ -45,6 +48,9 @@ class ScoreConfig:
     price_good_bad: tuple[float, float] = (250_000, 600_000)
     area_good_bad: tuple[float, float] = (80.0, 40.0)
     condo_good_bad: tuple[float, float] = (300.0, 900.0)
+    # Relação preço/aluguel em ANOS (preço ÷ aluguel anual). ~12 anos = compra
+    # ótima frente ao aluguel; >= 25 anos = alugar compensa bem mais.
+    price_to_rent_good_bad: tuple[float, float] = (12.0, 25.0)
 
     def bedroom_score(self, n: int) -> float:
         return {1: 0.40, 2: 1.0, 3: 0.90}.get(n, 0.70 if n >= 4 else 0.30)
@@ -72,6 +78,15 @@ def score_listing(listing: Listing, config: ScoreConfig | None = None) -> tuple[
         subs["bedrooms"] = cfg.bedroom_score(listing.bedrooms)
     if listing.parking_spots is not None:
         subs["parking"] = cfg.parking_score(listing.parking_spots)
+    # Custo-benefício: só quando há venda plausível E aluguel informado.
+    if (
+        listing.price is not None
+        and listing.price >= cfg.price_floor
+        and listing.rent_price
+        and listing.rent_price > 0
+    ):
+        years = listing.price / (listing.rent_price * 12)
+        subs["value"] = _lerp(years, *cfg.price_to_rent_good_bad)
 
     if not subs:
         return None, {"subscores": {}, "note": "sem dados suficientes para score"}

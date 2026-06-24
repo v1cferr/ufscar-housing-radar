@@ -26,6 +26,7 @@ class RawListing(BaseModel):
 
     # Valores podem chegar como string ("R$ 350.000") — normalize.py limpa.
     price: float | str | None = None
+    rent_price: float | str | None = None  # aluguel mensal (quando também loca)
     condo_fee: float | str | None = None
     area_m2: float | str | None = None
     bedrooms: int | str | None = None
@@ -56,6 +57,7 @@ class Listing(SQLModel, table=True):
     # Atributos do imóvel
     title: str | None = None
     price: float | None = Field(default=None, index=True)
+    rent_price: float | None = None  # aluguel mensal (anúncios de venda-e-locação)
     condo_fee: float | None = None
     area_m2: float | None = None
     bedrooms: int | None = Field(default=None, index=True)

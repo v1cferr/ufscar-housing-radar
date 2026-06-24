@@ -102,6 +102,38 @@ def enrich(*, limit: int | None = None, regeocode: bool = False) -> dict[str, in
     return stats
 
 
+def rescore_all() -> dict[str, int]:
+    """Recalcula APENAS o score (não toca em geocode/travel — preserva o refino ORS)."""
+    cfg = ScoreConfig()
+    n = 0
+    with session_scope() as session:
+        for listing in session.exec(select(Listing).where(Listing.status == "active")).all():
+            listing.score, listing.score_breakdown = score_listing(listing, cfg)
+            session.add(listing)
+            n += 1
+    return {"rescored": n}
+
+
+def backfill_rent_from_raw() -> dict[str, int]:
+    """Preenche rent_price (a partir de `valLocation` no dado cru) para registros antigos.
+
+    Migração idempotente: só toca em quem ainda não tem rent_price. Não recalcula o
+    score — chame rescore_all() em seguida.
+    """
+    from housing_radar.pipeline.normalize import parse_money
+
+    filled = 0
+    with session_scope() as session:
+        for listing in session.exec(select(Listing)).all():
+            if listing.rent_price is None and listing.raw:
+                rent = parse_money(listing.raw.get("valLocation"))
+                if rent and rent > 0:
+                    listing.rent_price = rent
+                    session.add(listing)
+                    filled += 1
+    return {"rent_filled": filled}
+
+
 def run_all(collector: Collector, max_pages: int | None = None) -> dict[str, int]:
     ingest_stats = ingest(collector, max_pages=max_pages)
     enrich_stats = enrich()

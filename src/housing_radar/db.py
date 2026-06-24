@@ -7,6 +7,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from urllib.parse import urlparse
 
+from sqlalchemy import inspect, text
 from sqlmodel import Session, SQLModel, create_engine
 
 # Importa os modelos para que SQLModel.metadata os conheça ao criar tabelas.
@@ -38,9 +39,33 @@ def get_engine():
     return _engine
 
 
+# Colunas adicionadas após a criação inicial da tabela. SQLite não tem migrações;
+# como create_all() não altera tabelas existentes, garantimos as colunas novas aqui.
+# (coluna, tipo SQL). Idempotente: só adiciona o que faltar.
+_SQLITE_ADDED_COLUMNS: dict[str, list[tuple[str, str]]] = {
+    "listing": [("rent_price", "FLOAT")],
+}
+
+
+def _migrate_sqlite_columns(engine) -> None:
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
+    with engine.begin() as conn:
+        for table, columns in _SQLITE_ADDED_COLUMNS.items():
+            if table not in existing_tables:
+                continue
+            have = {c["name"] for c in inspector.get_columns(table)}
+            for name, sql_type in columns:
+                if name not in have:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {sql_type}"))
+
+
 def init_db() -> None:
-    """Cria as tabelas se ainda não existirem."""
-    SQLModel.metadata.create_all(get_engine())
+    """Cria as tabelas se ainda não existirem e aplica micro-migrações de colunas."""
+    engine = get_engine()
+    SQLModel.metadata.create_all(engine)
+    if get_settings().is_sqlite:
+        _migrate_sqlite_columns(engine)
 
 
 @contextmanager
