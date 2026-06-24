@@ -7,18 +7,18 @@
 # O container do housing-radar escuta em 127.0.0.1:3005 (ver docker-compose.yml).
 
     # ---- Projetos ----
-    @radar host radar.v1cferr.dev
-    handle @radar {
+    @ap host ap.v1cferr.dev
+    handle @ap {
         reverse_proxy 127.0.0.1:3005
     }
 
 # --- Variante PRIVADA (login só de fora da LAN, igual ao dash) -------------
 # Se preferir não expor seu shortlist publicamente, troque o handle acima por:
 #
-#     @radar host radar.v1cferr.dev
-#     handle @radar {
-#         @radar_externo not remote_ip 192.168.1.0/24 127.0.0.1/8 ::1
-#         basic_auth @radar_externo {
+#     @ap host ap.v1cferr.dev
+#     handle @ap {
+#         @ap_externo not remote_ip 192.168.1.0/24 127.0.0.1/8 ::1
+#         basic_auth @ap_externo {
 #             v1cferr {$CADDY_DASH_HASH}   # reaproveita o hash do dash (usuário v1cferr)
 #         }
 #         reverse_proxy 127.0.0.1:3005

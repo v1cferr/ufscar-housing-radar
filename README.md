@@ -80,7 +80,7 @@ Copie `.env.example` para `.env` para ajustar coordenadas da UFSCar, chave do OR
 | `stats --top N` | Resumo + melhores anúncios |
 | `serve` | Sobe a API/dashboard (uvicorn) |
 
-## Deploy (Docker + Caddy → radar.v1cferr.dev)
+## Deploy (Docker + Caddy → ap.v1cferr.dev)
 
 O container escuta em `127.0.0.1:3005` e fica **atrás do Caddy** (systemd), que cuida
 de TLS (cert wildcard `*.v1cferr.dev`) e do domínio.
