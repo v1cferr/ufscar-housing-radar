@@ -8,7 +8,8 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 from fastapi import FastAPI, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
 from sqlmodel import select
@@ -18,6 +19,7 @@ from housing_radar.db import init_db, session_scope
 from housing_radar.models import Listing
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
+_STATIC_DIR = Path(__file__).parent / "static"
 templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 
 
@@ -95,6 +97,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="UFSCar Housing Radar", version="0.1.0", lifespan=lifespan)
+app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon() -> FileResponse:
+    return FileResponse(_STATIC_DIR / "favicon.ico")
 
 
 def _query_listings(
@@ -182,6 +190,7 @@ def dashboard(
     per_page: str = Query(default=str(_PER_PAGE_DEFAULT)),
 ) -> HTMLResponse:
     settings = get_settings()
+    base_url = settings.site_base_url.rstrip("/")
     sort = sort if sort in _SORTS else "score"
     per = _parse_per_page(per_page)
 
@@ -224,6 +233,12 @@ def dashboard(
         {
             "listings": page_items,
             "destination": settings.destination_label,
+            "meta": {
+                "title": settings.site_title,
+                "description": settings.site_description,
+                "url": base_url + "/",
+                "image": base_url + "/static/og-image.png",
+            },
             "neighborhoods": _all_neighborhoods(),
             "sort": sort,
             "sort_labels": _SORT_LABELS,

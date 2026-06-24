@@ -23,6 +23,14 @@ class Settings(BaseSettings):
     ufscar_lon: float = -47.8807
     destination_label: str = "UFSCar São Carlos"
 
+    # --- Site / metadados (SEO + OpenGraph) ---
+    site_base_url: str = "https://ap.v1cferr.dev"
+    site_title: str = "UFSCar Housing Radar"
+    site_description: str = (
+        "Apartamentos à venda perto da UFSCar (São Carlos/SP), coletados, "
+        "geolocalizados e ranqueados por proximidade, preço, área e mais."
+    )
+
     # --- Geocoding (Nominatim / OpenStreetMap) ---
     nominatim_user_agent: str = "ufscar-housing-radar/0.1 (contato@v1cferr.dev)"
     # Nominatim exige >= 1s entre requisições. Mantenha folga.

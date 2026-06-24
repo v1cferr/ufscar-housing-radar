@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="UFSCar Housing Radar">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5b9bff"/>
+      <stop offset="1" stop-color="#3f6ddb"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#bg)"/>
+  <!-- Casa -->
+  <path d="M30 16.5 L15 30 L19.5 30 L19.5 47 L40.5 47 L40.5 30 L45 30 Z"
+        fill="#ffffff" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+  <rect x="26" y="36" width="8" height="11" rx="1.2" fill="#3f6ddb"/>
+  <!-- Ondas de radar (canto superior direito) -->
+  <g fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round">
+    <circle cx="45" cy="20" r="2.6" fill="#ffffff" stroke="none"/>
+    <path d="M50 15 a8.5 8.5 0 0 1 0 12" opacity="0.92"/>
+    <path d="M54.5 11 a15 15 0 0 1 0 21" opacity="0.6"/>
+  </g>
+</svg>

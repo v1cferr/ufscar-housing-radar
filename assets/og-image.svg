@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" font-family="DejaVu Sans, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#12151c"/>
+      <stop offset="1" stop-color="#0c0e13"/>
+    </linearGradient>
+    <linearGradient id="badge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5b9bff"/>
+      <stop offset="1" stop-color="#3f6ddb"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="none" stroke="#272b34" stroke-width="2"/>
+
+  <!-- Radar decorativo (direita) -->
+  <g fill="none" stroke="#4f8cff" stroke-linecap="round">
+    <circle cx="1185" cy="315" r="120" stroke-opacity="0.16" stroke-width="2"/>
+    <circle cx="1185" cy="315" r="230" stroke-opacity="0.12" stroke-width="2"/>
+    <circle cx="1185" cy="315" r="345" stroke-opacity="0.08" stroke-width="2"/>
+    <circle cx="1185" cy="315" r="460" stroke-opacity="0.05" stroke-width="2"/>
+  </g>
+
+  <!-- Badge (casa + radar) -->
+  <g transform="translate(80,74)">
+    <rect width="116" height="116" rx="27" fill="url(#badge)"/>
+    <g transform="translate(58,58) scale(1.55) translate(-32,-32)">
+      <path d="M30 16.5 L15 30 L19.5 30 L19.5 47 L40.5 47 L40.5 30 L45 30 Z"
+            fill="#ffffff" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+      <rect x="26" y="36" width="8" height="11" rx="1.2" fill="#3f6ddb"/>
+      <g fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round">
+        <circle cx="45" cy="20" r="2.6" fill="#ffffff" stroke="none"/>
+        <path d="M50 15 a8.5 8.5 0 0 1 0 12" opacity="0.92"/>
+        <path d="M54.5 11 a15 15 0 0 1 0 21" opacity="0.6"/>
+      </g>
+    </g>
+  </g>
+
+  <text x="222" y="120" fill="#e6e8ec" font-size="40" font-weight="bold">UFSCar Housing Radar</text>
+  <text x="224" y="160" fill="#9aa3b2" font-size="23" letter-spacing="3">RADAR DE IMÓVEIS · SÃO CARLOS/SP</text>
+
+  <!-- Título -->
+  <text x="82" y="320" fill="#ffffff" font-size="78" font-weight="bold">Apartamentos perto</text>
+  <text x="82" y="408" fill="#ffffff" font-size="78" font-weight="bold">da <tspan fill="#4f8cff">UFSCar</tspan></text>
+
+  <!-- Subtítulo -->
+  <text x="84" y="470" fill="#9aa3b2" font-size="31">Coletados, geolocalizados e ranqueados por</text>
+  <text x="84" y="510" fill="#9aa3b2" font-size="31">proximidade, preço, área e tempo até o campus.</text>
+
+  <!-- Domínio -->
+  <g transform="translate(82,548)">
+    <rect width="232" height="46" rx="23" fill="#1b2740" stroke="#2c3c5e" stroke-width="1"/>
+    <circle cx="28" cy="23" r="6" fill="#4f8cff"/>
+    <text x="46" y="31" fill="#cfe0ff" font-size="24" font-weight="bold">ap.v1cferr.dev</text>
+  </g>
+</svg>
