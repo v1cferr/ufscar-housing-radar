@@ -24,6 +24,9 @@ dependencies = [
 [project.optional-dependencies]
 # Routing real por modal (a pé/bici/carro). Opcional: `uv sync --extra ors`.
 ors = ["openrouteservice>=2.3"]
+# Coletor via browser real (imovelweb, atrás de Cloudflare). Opcional/pesado:
+# `uv sync --extra browser && uv run playwright install chromium`. Não vai p/ o Docker.
+browser = ["playwright>=1.40"]
 
 [project.scripts]
 housing-radar = "housing_radar.cli:app"

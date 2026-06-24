@@ -30,6 +30,8 @@ coletar → normalizar → deduplicar → geocodar → tempo até a UFSCar → s
     lat/lon, dispensando geocoding);
   - `vivareal` / `zap` — **Grupo ZAP** (um coletor genérico, `grupozap.py`, lê os
     ~30 anúncios por página do `application/ld+json` público; best-effort, ToS);
+  - `imovelweb` — **Playwright** (browser real p/ passar o Cloudflare; `imovelweb.py`).
+    Opcional/pesado (extra `browser` + Chromium), fora do `collect all` e do Docker;
   - `olx` — best-effort (a OLX ignora o filtro de região na URL; rende pouco).
   - `all` — roda todas as fontes remotas de uma vez.
 - **Tempo até a UFSCar**: estimativa por distância + velocidade média (a pé/bici/carro)
@@ -55,6 +57,10 @@ uv run housing-radar run all -p 3       # ou: run cardinali / run roca / ...
 # 2b) Acervo COMPLETO das imobiliárias MSYS (varre o sitemap, educado e incremental)
 uv run housing-radar collect roca --full --cap 300   # repita p/ avançar 300 por vez
 uv run housing-radar enrich
+
+# 2c) (opcional) Imovelweb via browser real (passa o Cloudflare) — extra "browser"
+uv sync --extra browser && uv run playwright install chromium
+uv run housing-radar collect imovelweb -p 5 && uv run housing-radar enrich
 
 # 3) (opcional) Refinar os top candidatos com tempos REAIS por modal (OpenRouteService)
 uv sync --extra ors                          # instala o cliente ORS
@@ -111,9 +117,11 @@ depois `caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload ca
 - [x] Coletores de imobiliárias locais de São Carlos (Cardinali + plataforma MSYS)
 - [x] **Acervo completo MSYS** via sitemap (`collect <fonte> --full`) — educado (cap + delay) e incremental (pula ids já no banco)
 - [x] **VivaReal + ZAP** (Grupo ZAP) via JSON-LD público (`collect vivareal|zap`)
+- [x] **Imovelweb** via Playwright (browser real passa o Cloudflare) — extra `browser`, opcional
+- [x] **+3 imobiliárias MSYS** (e2, mariaaires, center) — 9 fontes, ~3.100 anúncios
 - [ ] **Cardinali:** abrir páginas de detalhe p/ preencher área/bairro faltantes (~30% dos cards)
-- [ ] **Dedup entre fontes**: o mesmo imóvel aparece em VivaReal/ZAP/imobiliária (ids distintos) — unir por endereço/atributos
-- [ ] QuintoAndar (tem captcha/anti-bot) e OLX (location real) — sob demanda
+- [ ] **Dedup entre fontes**: o mesmo imóvel aparece em VivaReal/ZAP/imovelweb (Navent) e nas imobiliárias com ids distintos — unir por endereço/atributos
+- [ ] QuintoAndar — captcha/anti-bot bloqueia até via Playwright (precisaria stealth/proxy)
 - [ ] Tempo de ônibus (GTFS São Carlos ou Google Distance Matrix)
 - [ ] Calibrar pesos do score com avaliações reais (com a mãe corretora)
 - [ ] Migrar SQLite → Postgres quando o volume crescer

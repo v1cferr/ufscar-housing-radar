@@ -9,7 +9,7 @@ from rich.console import Console
 from rich.table import Table
 from sqlmodel import select
 
-from housing_radar.collectors import REMOTE_COLLECTORS, ManualCSVCollector
+from housing_radar.collectors import BROWSER_COLLECTORS, REMOTE_COLLECTORS, ManualCSVCollector
 from housing_radar.collectors.msys import MSYS_SITES, MSYSCollector
 from housing_radar.config import get_settings
 from housing_radar.db import init_db, session_scope
@@ -60,7 +60,8 @@ _SOURCES_HELP = "all, " + ", ".join(REMOTE_COLLECTORS)
 
 def _resolve_sources(source: str) -> list[str]:
     if source == "all":
-        return list(REMOTE_COLLECTORS)
+        # 'all' exclui coletores de browser (Playwright) — rode-os explicitamente.
+        return [s for s in REMOTE_COLLECTORS if s not in BROWSER_COLLECTORS]
     if source not in REMOTE_COLLECTORS:
         raise typer.BadParameter(f"Fonte desconhecida: {source}. Use: {_SOURCES_HELP}")
     return [source]
