@@ -62,8 +62,16 @@ def ingest(collector: Collector, max_pages: int | None = None) -> dict[str, int]
     return {"collected": len(listings), "inserted": inserted, "updated": updated}
 
 
-def enrich(*, limit: int | None = None, regeocode: bool = False) -> dict[str, int]:
-    """Geocoda os que faltam, calcula tempo até a UFSCar e (re)calcula o score."""
+def enrich(
+    *, limit: int | None = None, regeocode: bool = False, recompute_ors: bool = False
+) -> dict[str, int]:
+    """Geocoda os que faltam, calcula tempo até a UFSCar e (re)calcula o score.
+
+    Por padrão **preserva os tempos do ORS** (travel_provider == 'ors'): só recalcula
+    o deslocamento por estimativa para quem ainda não foi refinado. Assim dá pra
+    enriquecer novos anúncios sem perder o refino caro dos top-N. Use
+    recompute_ors=True para forçar o recálculo por estimativa de todos.
+    """
     geocoder = Geocoder()
     travel = TravelCalculator()
     cfg = ScoreConfig()
@@ -75,14 +83,19 @@ def enrich(*, limit: int | None = None, regeocode: bool = False) -> dict[str, in
             listings = listings[:limit]
 
         for listing in listings:
-            if (regeocode or not listing.geocoded) and listing.address:
-                coords = geocoder.geocode(listing.address)
+            if (regeocode or not listing.geocoded) and (listing.address or listing.neighborhood):
+                coords = geocoder.geocode(listing.address) if listing.address else None
+                # Fallback: se a rua exata não resolve, usa o centro do bairro
+                # (preciso o bastante para a estimativa de tempo até a UFSCar).
+                if not coords and listing.neighborhood:
+                    coords = geocoder.geocode(f"{listing.neighborhood}, São Carlos, SP, Brasil")
                 if coords:
                     listing.lat, listing.lon = coords
                     listing.geocoded = True
                     stats["geocoded"] += 1
 
-            if listing.lat is not None and listing.lon is not None:
+            keep_ors = listing.travel_provider == "ors" and not recompute_ors
+            if listing.lat is not None and listing.lon is not None and not keep_ors:
                 result = travel.compute(listing.lat, listing.lon)
                 if result:
                     listing.dist_ufscar_km = result.dist_km

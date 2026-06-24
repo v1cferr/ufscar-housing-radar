@@ -27,6 +27,8 @@ coletar → normalizar → deduplicar → geocodar → tempo até a UFSCar → s
   - `cardinali` — imobiliária local, HTML, paginação `?pag=N` (acervo grande);
   - `roca` / `iplano` / `top` — plataforma **MSYS Imob** (um coletor genérico,
     `msys.py`, cobre as três e já traz lat/lon, dispensando geocoding);
+  - `vivareal` / `zap` — **Grupo ZAP** (um coletor genérico, `grupozap.py`, lê os
+    ~30 anúncios por página do `application/ld+json` público; best-effort, ToS);
   - `olx` — best-effort (a OLX ignora o filtro de região na URL; rende pouco).
   - `all` — roda todas as fontes remotas de uma vez.
 - **Tempo até a UFSCar**: estimativa por distância + velocidade média (a pé/bici/carro)
@@ -107,8 +109,10 @@ depois `caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload ca
 
 - [x] Coletores de imobiliárias locais de São Carlos (Cardinali + plataforma MSYS)
 - [x] **Acervo completo MSYS** via sitemap (`collect <fonte> --full`) — educado (cap + delay) e incremental (pula ids já no banco)
+- [x] **VivaReal + ZAP** (Grupo ZAP) via JSON-LD público (`collect vivareal|zap`)
 - [ ] **Cardinali:** abrir páginas de detalhe p/ preencher área/bairro faltantes (~30% dos cards)
-- [ ] ZAP/VivaReal/QuintoAndar e OLX (location real) — sob demanda, se faltar volume
+- [ ] **Dedup entre fontes**: o mesmo imóvel aparece em VivaReal/ZAP/imobiliária (ids distintos) — unir por endereço/atributos
+- [ ] QuintoAndar (tem captcha/anti-bot) e OLX (location real) — sob demanda
 - [ ] Tempo de ônibus (GTFS São Carlos ou Google Distance Matrix)
 - [ ] Calibrar pesos do score com avaliações reais (com a mãe corretora)
 - [ ] Migrar SQLite → Postgres quando o volume crescer

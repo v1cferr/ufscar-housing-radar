@@ -80,3 +80,53 @@ def test_score_handles_missing_data():
     score, breakdown = score_listing(listing)
     assert score is not None
     assert "price" in breakdown["subscores"]
+
+
+def test_score_value_bonus_for_low_price_to_rent():
+    # Mesmo imóvel; o que também informa aluguel (bom custo-benefício) pontua mais.
+    base = normalize(RawListing(source="m", source_id="a", price=200000, area_m2=70, bedrooms=2))
+    base.dist_ufscar_km = 2.0
+    with_rent = normalize(
+        RawListing(source="m", source_id="b", price=200000, rent_price=2000, area_m2=70, bedrooms=2)
+    )
+    with_rent.dist_ufscar_km = 2.0
+
+    s_base, _ = score_listing(base)
+    s_rent, breakdown = score_listing(with_rent)
+    assert "value" in breakdown["subscores"]
+    assert s_rent > s_base
+
+
+def test_grupozap_parses_jsonld_apartment():
+    from housing_radar.collectors.grupozap import GrupoZapCollector
+
+    apt = {
+        "@type": "Apartment",
+        "name": "Apartamento para comprar com 48 m², 2 quartos, 1 banheiro, 1 vaga em  Recreio São Judas Tadeu, São Carlos",
+        "url": "https://www.vivareal.com.br/imovel/foo-id-2893995129/",
+        "numberOfBedrooms": 2,
+        "numberOfBathroomsTotal": 1,
+        "floorSize": {"value": 48, "unitCode": "M2"},
+        "address": {"streetAddress": "Avenida Gregório Aversa", "addressLocality": "São Carlos"},
+        "offers": {"url": "https://www.vivareal.com.br/imovel/venda-RS253000-id-2893995129/", "price": 253000},
+    }
+    raw = GrupoZapCollector("vivareal")._parse(apt)
+    assert raw is not None
+    assert raw.source == "vivareal"
+    assert raw.source_id == "2893995129"
+    assert raw.price == 253000
+    assert raw.bedrooms == 2
+    assert raw.parking_spots == 1
+    assert raw.neighborhood == "Recreio São Judas Tadeu"
+
+
+def test_grupozap_skips_other_cities():
+    from housing_radar.collectors.grupozap import GrupoZapCollector
+
+    apt = {
+        "@type": "Apartment",
+        "name": "Apartamento em Campinas",
+        "offers": {"url": "https://www.zapimoveis.com.br/imovel/x-id-99/", "price": 100000},
+        "address": {"addressLocality": "Campinas"},
+    }
+    assert GrupoZapCollector("zap")._parse(apt) is None

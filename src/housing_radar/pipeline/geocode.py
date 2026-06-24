@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 class Geocoder:
     def __init__(self) -> None:
         settings = get_settings()
-        self._geocode_raw = Nominatim(user_agent=settings.nominatim_user_agent)
+        # timeout=10: o padrão do geopy é 1s, curto demais — gera ReadTimeout à toa.
+        self._geocode_raw = Nominatim(user_agent=settings.nominatim_user_agent, timeout=10)
         # RateLimiter respeita a política do Nominatim (>= 1 req/s).
         self._geocode = RateLimiter(
             self._geocode_raw.geocode,

@@ -114,12 +114,15 @@ def collect(
 def enrich(
     limit: int | None = typer.Option(None, "--limit", "-n"),
     regeocode: bool = typer.Option(False, "--regeocode"),
+    recompute_ors: bool = typer.Option(
+        False, "--recompute-ors", help="Recalcula por estimativa MESMO quem já tem ORS (perde o refino)"
+    ),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
-    """Geocoda, calcula tempo até a UFSCar e (re)calcula o score."""
+    """Geocoda, calcula tempo até a UFSCar e (re)calcula o score (preserva ORS por padrão)."""
     _setup_logging(verbose)
     init_db()
-    stats = run_enrich(limit=limit, regeocode=regeocode)
+    stats = run_enrich(limit=limit, regeocode=regeocode, recompute_ors=recompute_ors)
     console.print(f"[green]Enriquecimento concluído:[/green] {stats}")
 
 
