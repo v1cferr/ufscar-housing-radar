@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
 from contextlib import asynccontextmanager
@@ -96,6 +97,27 @@ def _dup_signature(listing: Listing):
     if not (hood and listing.area_m2 and listing.price):
         return ("uniq", listing.id)
     return (hood, listing.bedrooms or 0, round(listing.area_m2), round(listing.price / 5000) * 5000)
+
+
+def _photos(listing: Listing) -> list[str]:
+    """URLs de foto a partir do dado cru (MSYS: jsonPhotos; Grupo ZAP: image)."""
+    raw = listing.raw or {}
+    jp = raw.get("jsonPhotos")
+    if isinstance(jp, str):  # MSYS (detalhe) guarda como string JSON
+        try:
+            jp = json.loads(jp)
+        except (ValueError, TypeError):
+            jp = None
+    if isinstance(jp, list):
+        urls = [p.get("urlPhoto") for p in jp if isinstance(p, dict) and p.get("urlPhoto")]
+        if urls:
+            return urls
+    img = raw.get("image")
+    if isinstance(img, list):
+        return [u for u in img if isinstance(u, str)]
+    if isinstance(img, str):
+        return [img]
+    return []
 
 
 def _collapse_duplicates(listings: list[Listing], sort_key):
@@ -223,11 +245,26 @@ def api_listings(
     out = []
     for item in listings[:limit]:
         data = item.model_dump(mode="json")
+        data.pop("raw", None)  # raw é pesado; a lista não precisa
         meta = dup_meta.get(item.id)
         data["dup_count"] = meta["count"] if meta else 1
         data["dup_sources"] = meta["sources"] if meta else [item.source]
         out.append(data)
     return JSONResponse(out)
+
+
+@app.get("/api/listings/{listing_id}")
+def api_listing_detail(listing_id: int) -> JSONResponse:
+    """Detalhe de um anúncio (com fotos e breakdown do score) para o modal."""
+    with session_scope() as session:
+        item = session.get(Listing, listing_id)
+        if item is None or item.status != "active":
+            return JSONResponse({"error": "não encontrado"}, status_code=404)
+        data = item.model_dump(mode="json")
+        photos = _photos(item)
+    data.pop("raw", None)
+    data["photos"] = photos
+    return JSONResponse(data)
 
 
 @app.get("/", response_class=HTMLResponse)
