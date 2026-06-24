@@ -1,98 +1,343 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>UFSCar Housing Radar</title>
+  <!-- Aplica o tema antes da pintura para evitar "flash" da cor errada. -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('hr-theme');
+        if (!t) { t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'; }
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }
+    })();
+  </script>
   <style>
-    :root { --bg:#0f1115; --card:#181b22; --line:#272b34; --txt:#e6e8ec; --mut:#9aa3b2; --accent:#4f8cff; }
+    /* ---- Tokens de tema --------------------------------------------------- */
+    [data-theme="dark"] {
+      --bg:#0f1115; --surface:#181b22; --surface-2:#1f232c; --line:#272b34;
+      --txt:#e6e8ec; --mut:#9aa3b2; --accent:#4f8cff; --accent-soft:#23304a;
+      --hi-bg:#1f3d2b; --hi-tx:#bff5cf; --mid-bg:#23304a; --mid-tx:#cfe0ff;
+      --lo-bg:#3d2323; --lo-tx:#f5c9c9; --chip:#1f232c; --shadow:rgba(0,0,0,.35);
+    }
+    [data-theme="light"] {
+      --bg:#f5f6f8; --surface:#ffffff; --surface-2:#f0f2f5; --line:#e3e6eb;
+      --txt:#1a1d23; --mut:#5b6573; --accent:#2563eb; --accent-soft:#e6efff;
+      --hi-bg:#e3f6e9; --hi-tx:#1c7a3e; --mid-bg:#e6efff; --mid-tx:#2257c4;
+      --lo-bg:#fdeaea; --lo-tx:#c0392b; --chip:#eef1f5; --shadow:rgba(20,30,50,.10);
+    }
     * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
     body { margin:0; background:var(--bg); color:var(--txt);
-           font:15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-    header { padding:24px 20px 8px; }
-    h1 { margin:0; font-size:22px; }
+           font:15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+    /* ---- Topbar ----------------------------------------------------------- */
+    .topbar { display:flex; align-items:flex-start; justify-content:space-between;
+              gap:16px; padding:20px 16px 12px; max-width:1280px; margin:0 auto; }
+    h1 { margin:0; font-size:20px; letter-spacing:-.01em; }
     .sub { color:var(--mut); font-size:13px; margin-top:4px; }
-    .wrap { padding:16px 20px 48px; }
-    form { display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin:12px 0 20px; }
-    form label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--mut); }
-    input { background:var(--card); border:1px solid var(--line); color:var(--txt);
-            border-radius:8px; padding:8px 10px; min-width:140px; }
-    button { background:var(--accent); color:#fff; border:0; border-radius:8px;
-             padding:9px 16px; font-weight:600; cursor:pointer; }
-    .tablewrap { overflow-x:auto; border:1px solid var(--line); border-radius:12px; }
-    table { border-collapse:collapse; width:100%; min-width:880px; }
-    th, td { padding:10px 12px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
-    th { color:var(--mut); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
-    tr:last-child td { border-bottom:0; }
-    td.num { text-align:right; font-variant-numeric:tabular-nums; }
-    .score { display:inline-block; min-width:42px; text-align:center; font-weight:700;
-             padding:3px 8px; border-radius:999px; background:#23304a; color:#cfe0ff; }
-    .score.high { background:#1f3d2b; color:#bff5cf; }
-    .score.low { background:#3d2323; color:#f5c9c9; }
-    a { color:var(--accent); text-decoration:none; }
-    a:hover { text-decoration:underline; }
-    .empty { color:var(--mut); padding:40px; text-align:center; }
-    .muted { color:var(--mut); }
+    .sub b { color:var(--txt); font-weight:600; }
+    #theme-toggle { flex:0 0 auto; background:var(--surface); color:var(--txt);
+            border:1px solid var(--line); border-radius:999px; padding:8px 14px;
+            font-size:13px; font-weight:600; cursor:pointer; display:flex;
+            align-items:center; gap:7px; }
+    #theme-toggle:hover { border-color:var(--accent); }
+
+    .wrap { padding:0 16px 56px; max-width:1280px; margin:0 auto; }
+
+    /* ---- Filtros ---------------------------------------------------------- */
+    form.filters { display:grid; gap:10px; margin:8px 0 14px;
+            grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); align-items:end; }
+    form.filters .field { display:flex; flex-direction:column; gap:5px; min-width:0; }
+    form.filters label { font-size:12px; color:var(--mut); font-weight:600; }
+    form.filters input, form.filters select {
+            width:100%; background:var(--surface); border:1px solid var(--line);
+            color:var(--txt); border-radius:10px; padding:10px 11px; font-size:14px;
+            appearance:none; }
+    form.filters input:focus, form.filters select:focus {
+            outline:none; border-color:var(--accent);
+            box-shadow:0 0 0 3px var(--accent-soft); }
+    .actions { display:flex; gap:8px; }
+    .actions button, .actions a { flex:1; text-align:center; border-radius:10px;
+            padding:10px 14px; font-size:14px; font-weight:600; cursor:pointer;
+            text-decoration:none; }
+    .actions button { background:var(--accent); color:#fff; border:0; }
+    .actions a.clear { background:transparent; color:var(--mut);
+            border:1px solid var(--line); }
+    .actions a.clear:hover { color:var(--txt); border-color:var(--accent); }
+
+    /* ---- Legenda ---------------------------------------------------------- */
+    .legend { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center;
+            color:var(--mut); font-size:12.5px; margin:0 2px 14px; }
+    .legend .dot { display:inline-block; width:9px; height:9px; border-radius:50%;
+            margin-right:5px; vertical-align:middle; }
+    .legend .pill { display:inline-flex; align-items:center; padding:2px 9px;
+            border-radius:999px; background:var(--chip); font-weight:600; }
+
+    /* ---- Tabela (desktop) ------------------------------------------------- */
+    .tablewrap { border:1px solid var(--line); border-radius:14px; overflow:hidden;
+            background:var(--surface); box-shadow:0 1px 3px var(--shadow); }
+    .scroll { overflow-x:auto; }
+    table { border-collapse:collapse; width:100%; }
+    thead th { position:sticky; top:0; background:var(--surface-2); color:var(--mut);
+            font-size:11.5px; text-transform:uppercase; letter-spacing:.04em;
+            font-weight:700; text-align:left; padding:11px 12px; white-space:nowrap;
+            border-bottom:1px solid var(--line); z-index:1; }
+    thead th .u { color:var(--mut); opacity:.7; font-weight:600;
+            text-transform:none; letter-spacing:0; }
+    th.num, td.num { text-align:right; }
+    tbody td { padding:11px 12px; border-bottom:1px solid var(--line);
+            white-space:nowrap; vertical-align:middle; }
+    tbody tr:last-child td { border-bottom:0; }
+    tbody tr:hover { background:var(--surface-2); }
+    td.num { font-variant-numeric:tabular-nums; }
+    .title-main { font-weight:600; }
+    .title-sub { color:var(--mut); font-size:12px; }
+    a.lnk { color:var(--accent); text-decoration:none; }
+    a.lnk:hover { text-decoration:underline; }
+    .dash { color:var(--mut); }
+    .chip { display:inline-block; padding:2px 9px; border-radius:999px;
+            background:var(--chip); color:var(--mut); font-size:12px; font-weight:600; }
+    .real { color:var(--accent); font-weight:700; margin-left:3px; }
+
+    .score { display:inline-block; min-width:40px; text-align:center; font-weight:800;
+            padding:4px 9px; border-radius:999px; background:var(--mid-bg);
+            color:var(--mid-tx); font-variant-numeric:tabular-nums; }
+    .score.high { background:var(--hi-bg); color:var(--hi-tx); }
+    .score.low  { background:var(--lo-bg); color:var(--lo-tx); }
+
+    .empty { color:var(--mut); padding:48px 24px; text-align:center;
+            border:1px dashed var(--line); border-radius:14px; }
+    code { background:var(--surface-2); padding:1px 6px; border-radius:6px; font-size:13px; }
+
+    /* ---- Paginação -------------------------------------------------------- */
+    .pager { display:flex; flex-wrap:wrap; gap:6px; align-items:center;
+            justify-content:center; margin:18px 0 4px; }
+    .pager .pg { min-width:38px; text-align:center; padding:8px 12px;
+            border:1px solid var(--line); border-radius:10px; background:var(--surface);
+            color:var(--txt); text-decoration:none; font-size:14px; font-weight:600;
+            font-variant-numeric:tabular-nums; }
+    .pager a.pg:hover { border-color:var(--accent); color:var(--accent); }
+    .pager .pg.current { background:var(--accent); border-color:var(--accent); color:#fff; }
+    .pager .pg.nav { font-weight:600; }
+    .pager .pg.disabled { color:var(--mut); opacity:.5; cursor:default; }
+    .pager .gap { color:var(--mut); padding:0 2px; }
+
+    /* ---- Mobile: a tabela vira cartões ------------------------------------ */
+    @media (max-width: 760px) {
+      thead { display:none; }
+      table, tbody { display:block; }
+      tbody tr { display:flex; flex-direction:column; background:var(--surface);
+            border:1px solid var(--line); border-radius:14px; margin-bottom:12px;
+            overflow:hidden; box-shadow:0 1px 3px var(--shadow); }
+      .tablewrap { border:0; background:transparent; box-shadow:none; }
+      .scroll { overflow:visible; }
+      tbody td { display:flex; align-items:center; justify-content:space-between;
+            gap:14px; padding:9px 14px; border-bottom:1px solid var(--line);
+            white-space:normal; text-align:right; }
+      tbody td::before { content:attr(data-label); color:var(--mut); font-weight:600;
+            font-size:12.5px; text-align:left; text-transform:uppercase;
+            letter-spacing:.03em; flex:0 0 auto; }
+      tbody tr td:last-child { border-bottom:0; }
+      /* Título no topo do cartão, sem rótulo, ocupando a faixa toda. */
+      td.cell-title { order:-2; display:block; text-align:left;
+            background:var(--surface-2); padding:12px 14px; }
+      td.cell-title::before { content:none; }
+      .title-main { font-size:16px; }
+      td.cell-score { order:-1; }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>UFSCar Housing Radar</h1>
-    <div class="sub">Apartamentos próximos à {{ destination }} — ordenados por score · {{ listings|length }} resultados</div>
+  {# ---- Macros de célula (formatação + unidade + fallback) ---- #}
+  {% macro money(v) %}{% if v %}R$&nbsp;{{ v|int_br }}{% else %}<span class="dash">—</span>{% endif %}{% endmacro %}
+  {% macro money_mo(v) %}{% if v %}R$&nbsp;{{ v|int_br }}<span class="title-sub">/mês</span>{% else %}<span class="dash">—</span>{% endif %}{% endmacro %}
+  {% macro area(v) %}{% if v %}{{ v|round|int }}&nbsp;m²{% else %}<span class="dash">—</span>{% endif %}{% endmacro %}
+  {% macro km(v) %}{% if v %}{{ v|dec_br(1) }}&nbsp;km{% else %}<span class="dash">—</span>{% endif %}{% endmacro %}
+  {% macro mins(v, real) %}{% if v %}{{ v|round|int }}&nbsp;min{% if real %}<span class="real" title="tempo real (OpenRouteService)">•</span>{% endif %}{% else %}<span class="dash">—</span>{% endif %}{% endmacro %}
+  {% macro intv(v) %}{% if v is not none %}{{ v }}{% else %}<span class="dash">—</span>{% endif %}{% endmacro %}
+
+  <header class="topbar">
+    <div>
+      <h1>UFSCar Housing Radar</h1>
+      <div class="sub">
+        Apartamentos perto da <b>{{ destination }}</b> ·
+        {% if pagination.total %}mostrando <b>{{ pagination.first }}–{{ pagination.last }}</b> de <b>{{ pagination.total }}</b>{% else %}<b>0</b> resultados{% endif %} ·
+        ordenado por {{ sort_labels[sort]|lower }}
+      </div>
+    </div>
+    <button id="theme-toggle" type="button" aria-label="Alternar tema">
+      <span id="theme-ico">◐</span> <span id="theme-lbl">Tema</span>
+    </button>
   </header>
+
   <div class="wrap">
-    <form method="get">
-      <label>Preço máx. (R$)
-        <input type="number" name="max_price" value="{{ filters.max_price or '' }}" step="10000">
-      </label>
-      <label>Quartos mín.
-        <input type="number" name="min_bedrooms" value="{{ filters.min_bedrooms or '' }}" min="0">
-      </label>
-      <label>Bairro
-        <input type="text" name="neighborhood" value="{{ filters.neighborhood or '' }}" placeholder="ex.: Santa Felícia">
-      </label>
-      <button type="submit">Filtrar</button>
+    <form class="filters" method="get">
+      <div class="field" style="grid-column:1 / -1;">
+        <label for="q">Buscar (título ou bairro)</label>
+        <input id="q" type="search" name="q" value="{{ filters.q }}"
+               list="bairros" placeholder="ex.: Santa Felícia, Jockey Clube…">
+      </div>
+      <div class="field">
+        <label for="max_price">Preço máx.</label>
+        <input id="max_price" type="number" name="max_price" inputmode="numeric"
+               value="{{ filters.max_price|int if filters.max_price else '' }}"
+               step="10000" placeholder="R$">
+      </div>
+      <div class="field">
+        <label for="min_area">Área mín.</label>
+        <input id="min_area" type="number" name="min_area" inputmode="numeric"
+               value="{{ filters.min_area|int if filters.min_area else '' }}"
+               step="5" min="0" placeholder="m²">
+      </div>
+      <div class="field">
+        <label for="min_bedrooms">Quartos mín.</label>
+        <input id="min_bedrooms" type="number" name="min_bedrooms" inputmode="numeric"
+               value="{{ filters.min_bedrooms if filters.min_bedrooms is not none else '' }}"
+               min="0" placeholder="nº">
+      </div>
+      <div class="field">
+        <label for="max_car_min">Carro máx.</label>
+        <input id="max_car_min" type="number" name="max_car_min" inputmode="numeric"
+               value="{{ filters.max_car_min|int if filters.max_car_min else '' }}"
+               min="0" step="1" placeholder="min até UFSCar">
+      </div>
+      <div class="field">
+        <label for="sort">Ordenar por</label>
+        <select id="sort" name="sort" onchange="this.form.submit()">
+          {% for key, lbl in sort_labels.items() %}
+          <option value="{{ key }}" {{ 'selected' if sort == key }}>{{ lbl }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="per_page">Por página</label>
+        <select id="per_page" name="per_page" onchange="this.form.submit()">
+          {% for n in pagination.per_page_options %}
+          <option value="{{ n }}" {{ 'selected' if pagination.per_page == n|string }}>{{ n }} por página</option>
+          {% endfor %}
+          <option value="all" {{ 'selected' if pagination.per_page == 'all' }}>Todos</option>
+        </select>
+      </div>
+      <div class="field actions">
+        <button type="submit">Filtrar</button>
+        <a class="clear" href="/">Limpar</a>
+      </div>
     </form>
+
+    <datalist id="bairros">
+      {% for n in neighborhoods %}<option value="{{ n }}"></option>{% endfor %}
+    </datalist>
+
+    <div class="legend">
+      <span><span class="dot" style="background:var(--hi-tx)"></span>Score ≥ 70 (ótimo)</span>
+      <span><span class="dot" style="background:var(--mid-tx)"></span>45–69 (médio)</span>
+      <span><span class="dot" style="background:var(--lo-tx)"></span>&lt; 45 (fraco)</span>
+      <span class="pill">Score 0–100: proximidade · preço · área · condomínio · quartos · vagas</span>
+      <span><span class="real">•</span> tempo real (ORS); sem marca = estimativa</span>
+    </div>
 
     {% if listings %}
     <div class="tablewrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Score</th><th>Título</th><th>Bairro</th>
-            <th>Preço</th><th>Cond.</th><th>m²</th><th>Q</th><th>Vagas</th>
-            <th>Dist.</th><th>A pé</th><th>Bici</th><th>Carro</th><th>Fonte</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for l in listings %}
-          <tr>
-            <td>
-              {% set s = l.score or 0 %}
-              <span class="score {{ 'high' if s >= 70 else 'low' if s < 45 else '' }}">
-                {{ '%.0f'|format(s) if l.score is not none else '—' }}
-              </span>
-            </td>
-            <td>{% if l.url %}<a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.title or 'Sem título' }}</a>{% else %}{{ l.title or 'Sem título' }}{% endif %}</td>
-            <td>{{ l.neighborhood or '—' }}</td>
-            <td class="num">{{ '{:,.0f}'.format(l.price).replace(',', '.') if l.price else '—' }}</td>
-            <td class="num">{{ '{:,.0f}'.format(l.condo_fee).replace(',', '.') if l.condo_fee else '—' }}</td>
-            <td class="num">{{ '%.0f'|format(l.area_m2) if l.area_m2 else '—' }}</td>
-            <td class="num">{{ l.bedrooms if l.bedrooms is not none else '—' }}</td>
-            <td class="num">{{ l.parking_spots if l.parking_spots is not none else '—' }}</td>
-            <td class="num">{{ '%.1f km'|format(l.dist_ufscar_km) if l.dist_ufscar_km else '—' }}</td>
-            <td class="num">{{ '%.0f'|format(l.time_walk_min) if l.time_walk_min else '—' }}</td>
-            <td class="num">{{ '%.0f'|format(l.time_bike_min) if l.time_bike_min else '—' }}</td>
-            <td class="num">{{ '%.0f'|format(l.time_car_min) if l.time_car_min else '—' }}</td>
-            <td class="muted">{{ l.source }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th class="num">Score</th>
+              <th>Apartamento</th>
+              <th>Bairro</th>
+              <th class="num">Preço</th>
+              <th class="num">Condomínio</th>
+              <th class="num">Área</th>
+              <th class="num">Quartos</th>
+              <th class="num">Banheiros</th>
+              <th class="num">Vagas</th>
+              <th class="num">Distância <span class="u">(linha reta)</span></th>
+              <th class="num" title="Tempo de deslocamento até a UFSCar">A pé</th>
+              <th class="num" title="Tempo de deslocamento até a UFSCar">Bicicleta</th>
+              <th class="num" title="Tempo de deslocamento até a UFSCar">Carro</th>
+              <th>Fonte</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in listings %}
+            {% set s = l.score or 0 %}
+            {% set real = (l.travel_provider == 'ors') %}
+            <tr>
+              <td class="num cell-score" data-label="Score">
+                <span class="score {{ 'high' if s >= 70 else 'low' if s < 45 else '' }}">{{ '%.0f'|format(s) if l.score is not none else '—' }}</span>
+              </td>
+              <td class="cell-title">
+                <div class="title-main">
+                  {% if l.url %}<a class="lnk" href="{{ l.url }}" target="_blank" rel="noopener">{{ l.title or 'Sem título' }}</a>{% else %}{{ l.title or 'Sem título' }}{% endif %}
+                </div>
+              </td>
+              <td data-label="Bairro">{{ l.neighborhood or '—' }}</td>
+              <td class="num" data-label="Preço">{{ money(l.price) }}</td>
+              <td class="num" data-label="Condomínio">{{ money_mo(l.condo_fee) }}</td>
+              <td class="num" data-label="Área">{{ area(l.area_m2) }}</td>
+              <td class="num" data-label="Quartos">{{ intv(l.bedrooms) }}</td>
+              <td class="num" data-label="Banheiros">{{ intv(l.bathrooms) }}</td>
+              <td class="num" data-label="Vagas">{{ intv(l.parking_spots) }}</td>
+              <td class="num" data-label="Distância (reta)">{{ km(l.dist_ufscar_km) }}</td>
+              <td class="num" data-label="A pé até UFSCar">{{ mins(l.time_walk_min, real) }}</td>
+              <td class="num" data-label="Bicicleta até UFSCar">{{ mins(l.time_bike_min, real) }}</td>
+              <td class="num" data-label="Carro até UFSCar">{{ mins(l.time_car_min, real) }}</td>
+              <td data-label="Fonte"><span class="chip">{{ l.source }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
+
+    {% if pagination.total_pages > 1 %}
+    <nav class="pager" aria-label="Paginação">
+      {% if pagination.page > 1 %}
+      <a class="pg nav" href="?{{ pagination.query_base }}&page={{ pagination.page - 1 }}" rel="prev">‹ Anterior</a>
+      {% else %}<span class="pg nav disabled">‹ Anterior</span>{% endif %}
+
+      {% for p in pagination.pages %}
+        {% if p is none %}<span class="gap">…</span>
+        {% elif p == pagination.page %}<span class="pg current" aria-current="page">{{ p }}</span>
+        {% else %}<a class="pg" href="?{{ pagination.query_base }}&page={{ p }}">{{ p }}</a>{% endif %}
+      {% endfor %}
+
+      {% if pagination.page < pagination.total_pages %}
+      <a class="pg nav" href="?{{ pagination.query_base }}&page={{ pagination.page + 1 }}" rel="next">Próxima ›</a>
+      {% else %}<span class="pg nav disabled">Próxima ›</span>{% endif %}
+    </nav>
+    {% endif %}
     {% else %}
-    <div class="empty">Nenhum anúncio ainda. Rode <code>housing-radar run</code> ou importe um CSV com <code>housing-radar import-csv</code>.</div>
+    <div class="empty">
+      Nenhum apartamento encontrado.<br>
+      Ajuste os filtros, ou rode <code>housing-radar run all</code> /
+      <code>housing-radar import-csv</code> para popular a base.
+    </div>
     {% endif %}
   </div>
+
+  <script>
+    (function () {
+      var root = document.documentElement;
+      var KEY = 'hr-theme';
+      function apply(t) {
+        root.setAttribute('data-theme', t);
+        var ico = document.getElementById('theme-ico');
+        var lbl = document.getElementById('theme-lbl');
+        if (ico) ico.textContent = t === 'dark' ? '☀' : '☾';
+        if (lbl) lbl.textContent = t === 'dark' ? 'Claro' : 'Escuro';
+      }
+      apply(root.getAttribute('data-theme') || 'dark');
+      var btn = document.getElementById('theme-toggle');
+      btn.addEventListener('click', function () {
+        var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        try { localStorage.setItem(KEY, next); } catch (e) {}
+        apply(next);
+      });
+    })();
+  </script>
 </body>
 </html>
