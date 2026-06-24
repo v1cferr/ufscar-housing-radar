@@ -10,6 +10,7 @@ from rich.table import Table
 from sqlmodel import select
 
 from housing_radar.collectors import REMOTE_COLLECTORS, ManualCSVCollector
+from housing_radar.collectors.msys import MSYS_SITES, MSYSCollector
 from housing_radar.config import get_settings
 from housing_radar.db import init_db, session_scope
 from housing_radar.models import Listing
@@ -60,17 +61,47 @@ def _resolve_sources(source: str) -> list[str]:
     return [source]
 
 
+def _existing_source_ids(source: str) -> set[str]:
+    with session_scope() as session:
+        rows = session.exec(
+            select(Listing.source_id).where(
+                Listing.source == source, Listing.source_id.is_not(None)
+            )
+        ).all()
+    return {r for r in rows if r}
+
+
+def _build_collector(name: str, *, full: bool, cap: int, delay: float):
+    """Constrói o coletor de uma fonte; em --full, roteia MSYS p/ varredura do sitemap."""
+    if full and name in MSYS_SITES:
+        return MSYSCollector(
+            MSYS_SITES[name],
+            name=name,
+            full=True,
+            cap=cap,
+            delay=delay,
+            skip_ids=_existing_source_ids(name),  # incremental: não re-busca o que já há
+        )
+    if full and name not in MSYS_SITES:
+        console.print(f"[yellow]--full ignorado para '{name}' (só vale para fontes MSYS).[/yellow]")
+    return REMOTE_COLLECTORS[name]()
+
+
 @app.command()
 def collect(
     source: str = typer.Argument("all", help=f"Fonte: {_SOURCES_HELP}"),
     max_pages: int | None = typer.Option(None, "--max-pages", "-p"),
+    full: bool = typer.Option(False, "--full", help="MSYS: varre o sitemap (acervo completo)"),
+    cap: int = typer.Option(300, "--cap", help="--full: máx. de imóveis por execução"),
+    delay: float = typer.Option(0.4, "--delay", help="--full: pausa (s) entre requisições"),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
     """Coleta de uma ou todas as fontes remotas e faz upsert no banco (sem enriquecer)."""
     _setup_logging(verbose)
     init_db()
     for name in _resolve_sources(source):
-        stats = ingest(REMOTE_COLLECTORS[name](), max_pages=max_pages)
+        collector = _build_collector(name, full=full, cap=cap, delay=delay)
+        stats = ingest(collector, max_pages=max_pages)
         console.print(f"[green]{name} coletado:[/green] {stats}")
 
 
@@ -91,13 +122,17 @@ def enrich(
 def run(
     source: str = typer.Argument("all", help=f"Fonte: {_SOURCES_HELP}"),
     max_pages: int | None = typer.Option(None, "--max-pages", "-p"),
+    full: bool = typer.Option(False, "--full", help="MSYS: varre o sitemap (acervo completo)"),
+    cap: int = typer.Option(300, "--cap", help="--full: máx. de imóveis por execução"),
+    delay: float = typer.Option(0.4, "--delay", help="--full: pausa (s) entre requisições"),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
     """Pipeline completo: coleta de uma/todas as fontes + enriquecimento."""
     _setup_logging(verbose)
     init_db()
     for name in _resolve_sources(source):
-        stats = ingest(REMOTE_COLLECTORS[name](), max_pages=max_pages)
+        collector = _build_collector(name, full=full, cap=cap, delay=delay)
+        stats = ingest(collector, max_pages=max_pages)
         console.print(f"[green]{name} coletado:[/green] {stats}")
     enrich_stats = run_enrich()
     console.print(f"[green]Enriquecimento:[/green] {enrich_stats}")

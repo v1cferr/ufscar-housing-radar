@@ -48,6 +48,10 @@ uv run housing-radar stats         # ranking no terminal
 # 2) Coletar das imobiliárias locais + rodar o pipeline completo (todas as fontes)
 uv run housing-radar run all -p 3       # ou: run cardinali / run roca / ...
 
+# 2b) Acervo COMPLETO das imobiliárias MSYS (varre o sitemap, educado e incremental)
+uv run housing-radar collect roca --full --cap 300   # repita p/ avançar 300 por vez
+uv run housing-radar enrich
+
 # 3) Exportar planilha para mandar pra avaliação
 uv run housing-radar export --fmt xlsx     # -> exports/apartamentos_ufscar.xlsx
 
@@ -84,7 +88,7 @@ stack self-contained com Caddy junto: `docker compose --profile edge up -d --bui
 ## Roadmap
 
 - [x] Coletores de imobiliárias locais de São Carlos (Cardinali + plataforma MSYS)
-- [ ] **Acervo completo MSYS** via sitemap (`/sitemaps/propertys.xml`) — hoje só o seed SSR (~12/imob)
+- [x] **Acervo completo MSYS** via sitemap (`collect <fonte> --full`) — educado (cap + delay) e incremental (pula ids já no banco)
 - [ ] **Cardinali:** abrir páginas de detalhe p/ preencher área/bairro faltantes (~30% dos cards)
 - [ ] ZAP/VivaReal/QuintoAndar e OLX (location real) — sob demanda, se faltar volume
 - [ ] Tempo de ônibus (GTFS São Carlos ou Google Distance Matrix)
