@@ -51,6 +51,11 @@ def ingest(collector: Collector, max_pages: int | None = None) -> dict[str, int]
                     if new is not None and new != getattr(existing, fieldname):
                         setattr(existing, fieldname, new)
                         changed = True
+                # Atualiza o raw quando vier dado novo (ex.: fotos) — sem isso o
+                # upsert nunca refrescaria fotos de anúncios já existentes.
+                if item.raw is not None and item.raw != existing.raw:
+                    existing.raw = item.raw
+                    changed = True
                 if changed:
                     from datetime import UTC, datetime
 

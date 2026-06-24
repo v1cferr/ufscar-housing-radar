@@ -91,6 +91,18 @@ class ImovelWebCollector(Collector):
             m = rx.search(feats)
             return m.group(1) if m else None
 
+        # Fotos do card (URLs no HTML; ignora data: placeholders).
+        photos: list[str] = []
+        try:
+            photos = list(dict.fromkeys(
+                re.findall(r"https?://[^\"'\s)]+?\.(?:jpg|jpeg|png|webp)", card.inner_html(), re.I)
+            ))
+        except Exception:  # noqa: BLE001 — best-effort
+            photos = []
+
+        raw = {"location": loc_txt, "features": feats}
+        if photos:
+            raw["image"] = photos
         return RawListing(
             source="imovelweb",
             source_id=source_id,
@@ -105,7 +117,7 @@ class ImovelWebCollector(Collector):
             parking_spots=grab(_PARK_RE),
             neighborhood=neighborhood,
             city=city,
-            raw={"location": loc_txt, "features": feats},
+            raw=raw,
         )
 
     def collect(self, *, max_pages: int | None = None) -> list[RawListing]:

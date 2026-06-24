@@ -57,6 +57,19 @@ def _parse_card(card) -> RawListing | None:
     if url and not url.startswith("http"):
         url = f"{_BASE}/{url.lstrip('/')}"
 
+    # Fotos do carrossel do card (lazy-load via data-flickity-lazyload-src).
+    photos: list[str] = []
+    for im in card.select("img"):
+        src = (
+            im.get("data-flickity-lazyload-src")
+            or im.get("data-flickity-lazyload")
+            or im.get("data-src")
+            or im.get("src")
+        )
+        if src and src.startswith("http"):
+            photos.append(src)
+    photos = list(dict.fromkeys(photos))
+
     # ".card-bairro-cidade-texto" -> "Residencial Parati - São Carlos/SP"
     # (é o nome do condomínio + cidade; o bairro real não vem no card)
     address = None
@@ -75,6 +88,7 @@ def _parse_card(card) -> RawListing | None:
         parking_spots=parking,
         address=address,
         city="São Carlos",
+        raw={"image": photos} if photos else None,
     )
 
 
