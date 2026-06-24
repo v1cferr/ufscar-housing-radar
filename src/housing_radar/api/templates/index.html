@@ -105,6 +105,9 @@
             margin-right:5px; vertical-align:middle; }
     .legend .pill { display:inline-flex; align-items:center; padding:2px 9px;
             border-radius:999px; background:var(--chip); font-weight:600; }
+    .legend a.toggle { text-decoration:none; color:var(--accent);
+            border:1px solid var(--line); cursor:pointer; }
+    .legend a.toggle:hover { border-color:var(--accent); }
 
     /* ---- Tabela (desktop) ------------------------------------------------- */
     .tablewrap { border:1px solid var(--line); border-radius:14px; overflow:hidden;
@@ -268,6 +271,7 @@
       <span><span class="dot" style="background:var(--lo-tx)"></span>&lt; 45 (fraco)</span>
       <span class="pill">Score 0–100: proximidade · preço · área · condomínio · quartos · vagas · custo-benefício (preço/aluguel)</span>
       <span><span class="real">•</span> tempo real (ORS); sem marca = estimativa</span>
+      <a class="pill toggle" href="?{{ toggle_query }}">{% if grouped %}Duplicatas agrupadas — ver todas{% else %}Mostrando todas — agrupar duplicatas{% endif %}</a>
     </div>
 
     {% if listings %}
@@ -305,6 +309,8 @@
                 <div class="title-main">
                   {% if l.url %}<a class="lnk" href="{{ l.url }}" target="_blank" rel="noopener">{{ l.title or 'Sem título' }}</a>{% else %}{{ l.title or 'Sem título' }}{% endif %}
                 </div>
+                {% set dm = dup_meta.get(l.id) %}
+                {% if dm %}<div class="title-sub" title="Mesmo imóvel anunciado em {{ dm.count }} fontes">também em {{ dm.count }} fontes: {{ dm.sources|join(', ') }}{% if dm.price_min and dm.price_max and dm.price_min != dm.price_max %} · R$ {{ dm.price_min|int_br }}–{{ dm.price_max|int_br }}{% endif %}</div>{% endif %}
               </td>
               <td data-label="Bairro">{{ l.neighborhood or '—' }}</td>
               <td class="num" data-label="Preço">{{ money(l.price) }}</td>

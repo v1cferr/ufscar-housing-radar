@@ -97,6 +97,20 @@ def test_score_value_bonus_for_low_price_to_rent():
     assert s_rent > s_base
 
 
+def test_score_penalizes_unknown_location():
+    # Sem geocoding (dist None) deve pontuar abaixo do mesmo imóvel localizado e perto.
+    base = RawListing(source="m", source_id="a", price=200000, area_m2=70, bedrooms=2)
+    located = normalize(base.model_copy(update={"source_id": "b"}))
+    located.dist_ufscar_km = 1.5
+    unlocated = normalize(base)  # dist fica None
+
+    s_located, _ = score_listing(located)
+    s_unlocated, breakdown = score_listing(unlocated)
+    assert "proximity" in breakdown["subscores"]  # presente, mas penalizada
+    assert s_unlocated < s_located
+    assert s_unlocated < 80  # não dispara para o topo
+
+
 def test_grupozap_parses_jsonld_apartment():
     from housing_radar.collectors.grupozap import GrupoZapCollector
 
@@ -118,6 +132,31 @@ def test_grupozap_parses_jsonld_apartment():
     assert raw.bedrooms == 2
     assert raw.parking_spots == 1
     assert raw.neighborhood == "Recreio São Judas Tadeu"
+
+
+def test_collapse_duplicates_groups_across_sources():
+    from housing_radar.api.app import _SORTS, _collapse_duplicates
+
+    def mk(i, src, price, score):
+        listing = normalize(
+            RawListing(source=src, source_id=str(i), price=price, area_m2=70,
+                       bedrooms=2, neighborhood="Centro")
+        )
+        listing.id = i
+        listing.score = score
+        return listing
+
+    a = mk(1, "vivareal", 200000, 80)
+    b = mk(2, "zap", 200000, 78)         # mesma assinatura de 'a' -> agrupa
+    c = mk(3, "cardinali", 350000, 90)   # preço diferente -> grupo próprio
+
+    reps, meta = _collapse_duplicates([a, b, c], _SORTS["score"])
+    rep_ids = {r.id for r in reps}
+    assert len(reps) == 2
+    assert 3 in rep_ids                  # c fica sozinho
+    assert 1 in rep_ids and 2 not in rep_ids  # grupo colapsa no melhor score
+    assert meta[1]["count"] == 2
+    assert set(meta[1]["sources"]) == {"vivareal", "zap"}
 
 
 def test_grupozap_skips_other_cities():

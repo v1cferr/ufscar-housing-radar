@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from contextlib import asynccontextmanager
 from math import ceil
 from pathlib import Path
@@ -100,6 +101,48 @@ def _parse_per_page(value: str | None) -> int | str:
     except (TypeError, ValueError):
         return _PER_PAGE_DEFAULT
     return n if n in _PER_PAGE_OPTIONS else _PER_PAGE_DEFAULT
+
+
+# --- Dedup entre fontes (o mesmo imóvel em VivaReal/ZAP/imovelweb/imobiliária) -
+def _norm_txt(value: str | None) -> str:
+    nfkd = unicodedata.normalize("NFKD", (value or "").lower())
+    stripped = "".join(c for c in nfkd if not unicodedata.combining(c))
+    return re.sub(r"[^a-z0-9]+", " ", stripped).strip()
+
+
+def _dup_signature(listing: Listing):
+    """Assinatura para juntar o mesmo imóvel anunciado em fontes diferentes.
+
+    Bairro + quartos + área (m²) + preço arredondado a R$5k. Sem dados-chave,
+    não agrupa (fica único pelo id) — conservador para não fundir o que não dá.
+    """
+    hood = _norm_txt(listing.neighborhood)
+    if not (hood and listing.area_m2 and listing.price):
+        return ("uniq", listing.id)
+    return (hood, listing.bedrooms or 0, round(listing.area_m2), round(listing.price / 5000) * 5000)
+
+
+def _collapse_duplicates(listings: list[Listing], sort_key):
+    """Colapsa duplicatas: 1 representante por grupo (o melhor pelo sort atual)."""
+    groups: dict = {}
+    for item in listings:
+        groups.setdefault(_dup_signature(item), []).append(item)
+    reps: list[Listing] = []
+    meta: dict[int, dict] = {}
+    for members in groups.values():
+        members.sort(key=sort_key)
+        rep = members[0]
+        reps.append(rep)
+        if len(members) > 1:
+            prices = sorted({round(m.price) for m in members if m.price})
+            meta[rep.id] = {
+                "count": len(members),
+                "sources": sorted({m.source for m in members}),
+                "price_min": prices[0] if prices else None,
+                "price_max": prices[-1] if prices else None,
+            }
+    reps.sort(key=sort_key)
+    return reps, meta
 
 
 def _page_window(page: int, total_pages: int, span: int = 2) -> list[int | None]:
@@ -227,11 +270,13 @@ def dashboard(
     sort: str = Query(default="score"),
     page: int = Query(default=1, ge=1),
     per_page: str = Query(default=str(_PER_PAGE_DEFAULT)),
+    group: str = Query(default="1"),
 ) -> HTMLResponse:
     settings = get_settings()
     base_url = settings.site_base_url.rstrip("/")
     sort = sort if sort in _SORTS else "score"
     per = _parse_per_page(per_page)
+    grouped = group != "0"
 
     # Coerção tolerante (string vazia / inválida -> None).
     f_max_price = _to_float(max_price)
@@ -250,6 +295,10 @@ def dashboard(
         sort=sort,
     )
 
+    dup_meta: dict[int, dict] = {}
+    if grouped:
+        listings, dup_meta = _collapse_duplicates(listings, _SORTS[sort])
+
     total = len(listings)
     if not isinstance(per, int) or total == 0:
         page, total_pages, page_items = 1, 1, listings
@@ -261,8 +310,8 @@ def dashboard(
         page_items = listings[start : start + per]
         first = start + 1
 
-    # querystring base (preserva filtros/sort/per_page; o page é anexado nos links)
-    base_params: dict[str, str | int] = {"sort": sort, "per_page": per_page}
+    # querystring base (preserva filtros/sort/per_page/group; o page é anexado nos links)
+    base_params: dict[str, str | int] = {"sort": sort, "per_page": per_page, "group": group}
     for key, value in (
         ("q", f_q or None),
         ("max_price", int(f_max_price) if f_max_price else None),
@@ -273,11 +322,19 @@ def dashboard(
         if value not in (None, ""):
             base_params[key] = value
 
+    # querystring com o agrupamento invertido (para o link de alternância)
+    toggle_params = dict(base_params)
+    toggle_params["group"] = "0" if grouped else "1"
+    toggle_query = urlencode(toggle_params)
+
     return templates.TemplateResponse(
         request,
         "index.html",
         {
             "listings": page_items,
+            "dup_meta": dup_meta,
+            "grouped": grouped,
+            "toggle_query": toggle_query,
             "destination": settings.destination_label,
             "meta": {
                 "title": settings.site_title,

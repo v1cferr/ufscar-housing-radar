@@ -51,6 +51,10 @@ class ScoreConfig:
     # Relação preço/aluguel em ANOS (preço ÷ aluguel anual). ~12 anos = compra
     # ótima frente ao aluguel; >= 25 anos = alugar compensa bem mais.
     price_to_rent_good_bad: tuple[float, float] = (12.0, 25.0)
+    # Proximidade é o critério central. Sem geocoding não dá pra confiar que é
+    # perto da UFSCar — então atribui um subscore baixo (penaliza) em vez de
+    # ignorar o critério, senão um anúncio sem localização sobe ao topo de graça.
+    proximity_unknown: float = 0.25
 
     def bedroom_score(self, n: int) -> float:
         return {1: 0.40, 2: 1.0, 3: 0.90}.get(n, 0.70 if n >= 4 else 0.30)
@@ -65,6 +69,9 @@ def score_listing(listing: Listing, config: ScoreConfig | None = None) -> tuple[
 
     if listing.dist_ufscar_km is not None:
         subs["proximity"] = _lerp(listing.dist_ufscar_km, *cfg.dist_km_good_bad)
+    else:
+        # Sem localização: penaliza (não pode disputar o topo com quem é perto).
+        subs["proximity"] = cfg.proximity_unknown
     if listing.price is not None:
         if listing.price < cfg.price_floor:
             subs["price"] = 0.0  # implausível p/ venda (provável aluguel/erro)
