@@ -1,4 +1,4 @@
-# 🏢 UFSCar Housing Radar
+# UFSCar Housing Radar
 
 Pipeline semi-automatizado para **coletar, normalizar, geolocalizar, ranquear e servir**
 apartamentos próximos à **UFSCar / FAI.UFSCar** (São Carlos – SP).
@@ -7,7 +7,7 @@ A ideia (card [V1C-68](https://v1cferr.atlassian.net/browse/V1C-68)): sair da bu
 "impressão" e transformar a procura de imóvel num processo baseado em dados — gerar uma
 lista qualificada e comparável para discutir com mais maturidade na hora da decisão.
 
-> ⚠️ Etapa de **preparação**, não de compra. E o scraping respeita baixo volume e os
+> Etapa de **preparação**, não de compra. E o scraping respeita baixo volume e os
 > termos de uso das plataformas.
 
 ## Stack

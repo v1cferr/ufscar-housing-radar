@@ -4,7 +4,7 @@ Estratégia: a OLX é um app Next.js que embute os dados da busca num
 `<script id="__NEXT_DATA__">`. A lista orgânica fica em `props.pageProps.ads`
 (usamos esse caminho; caímos para uma varredura recursiva só como fallback).
 
-⚠️ LIMITAÇÃO CONHECIDA (descoberta em 2026-06): nas nossas requisições a OLX
+LIMITAÇÃO CONHECIDA (descoberta em 2026-06): nas nossas requisições a OLX
 **ignora o filtro de região na URL** (provável geo-detecção por IP) e devolve
 anúncios patrocinados de SP inteiro (São Caetano, Campinas, ...). Por isso
 filtramos por `target_city` para nunca poluir o banco com imóveis de fora de
