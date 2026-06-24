@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from contextlib import asynccontextmanager
 from math import ceil
 from pathlib import Path
@@ -21,6 +22,33 @@ from housing_radar.models import Listing
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
 _STATIC_DIR = Path(__file__).parent / "static"
 templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
+
+
+# --- Coerção de query params vindos de formulário (string vazia -> None) -----
+def _to_float(value: str | None) -> float | None:
+    """'' / None / inválido -> None; senão float."""
+    if value is None or not str(value).strip():
+        return None
+    try:
+        return float(str(value).replace(",", "."))
+    except ValueError:
+        return None
+
+
+def _to_int(value: str | None) -> int | None:
+    f = _to_float(value)
+    return int(f) if f is not None else None
+
+
+def _extract_id(value: str | None) -> str | None:
+    """Pega o último grupo de dígitos de uma busca/URL colada.
+
+    Ex.: 'https://iplano.com.br/imovel/.../jardim-jockei-club-a/18219/' -> '18219'.
+    """
+    if not value:
+        return None
+    matches = re.findall(r"\d+", value)
+    return matches[-1] if matches else None
 
 
 # --- Formatação pt-BR (filtros Jinja) ---------------------------------------
@@ -129,10 +157,19 @@ def _query_listings(
         if neighborhood:
             stmt = stmt.where(Listing.neighborhood.ilike(f"%{neighborhood}%"))
         if q:
-            like = f"%{q}%"
-            stmt = stmt.where(
-                or_(Listing.title.ilike(like), Listing.neighborhood.ilike(like))
-            )
+            term = q.strip()
+            like = f"%{term}%"
+            conds = [
+                Listing.title.ilike(like),
+                Listing.neighborhood.ilike(like),
+                Listing.url.ilike(like),
+                Listing.source_id.ilike(like),
+            ]
+            # Se colaram uma URL (ou ID), casa o ID do anúncio exatamente.
+            found_id = _extract_id(term)
+            if found_id:
+                conds.append(Listing.source_id == found_id)
+            stmt = stmt.where(or_(*conds))
         listings = session.exec(stmt).all()
 
     listings.sort(key=_SORTS.get(sort, _SORTS["score"]))
@@ -156,20 +193,21 @@ def healthz() -> dict[str, str]:
 @app.get("/api/listings")
 def api_listings(
     q: str | None = Query(default=None),
-    max_price: float | None = Query(default=None),
-    min_bedrooms: int | None = Query(default=None),
-    min_area: float | None = Query(default=None),
-    max_car_min: float | None = Query(default=None),
+    # Aceitos como string p/ tolerar campos vazios de formulário ("" -> sem filtro).
+    max_price: str | None = Query(default=None),
+    min_bedrooms: str | None = Query(default=None),
+    min_area: str | None = Query(default=None),
+    max_car_min: str | None = Query(default=None),
     neighborhood: str | None = Query(default=None),
     sort: str = Query(default="score"),
     limit: int = Query(default=100, le=1000),
 ) -> JSONResponse:
     listings = _query_listings(
         q=q,
-        max_price=max_price,
-        min_bedrooms=min_bedrooms,
-        min_area=min_area,
-        max_car_min=max_car_min,
+        max_price=_to_float(max_price),
+        min_bedrooms=_to_int(min_bedrooms),
+        min_area=_to_float(min_area),
+        max_car_min=_to_float(max_car_min),
         neighborhood=neighborhood,
         sort=sort,
     )
@@ -180,10 +218,11 @@ def api_listings(
 def dashboard(
     request: Request,
     q: str | None = Query(default=None),
-    max_price: float | None = Query(default=None),
-    min_bedrooms: int | None = Query(default=None),
-    min_area: float | None = Query(default=None),
-    max_car_min: float | None = Query(default=None),
+    # Aceitos como string p/ tolerar campos vazios de formulário ("" -> sem filtro).
+    max_price: str | None = Query(default=None),
+    min_bedrooms: str | None = Query(default=None),
+    min_area: str | None = Query(default=None),
+    max_car_min: str | None = Query(default=None),
     neighborhood: str | None = Query(default=None),
     sort: str = Query(default="score"),
     page: int = Query(default=1, ge=1),
@@ -194,13 +233,20 @@ def dashboard(
     sort = sort if sort in _SORTS else "score"
     per = _parse_per_page(per_page)
 
+    # Coerção tolerante (string vazia / inválida -> None).
+    f_max_price = _to_float(max_price)
+    f_min_bedrooms = _to_int(min_bedrooms)
+    f_min_area = _to_float(min_area)
+    f_max_car_min = _to_float(max_car_min)
+    f_q = (q or neighborhood or "").strip()
+
     listings = _query_listings(
-        q=q,
-        max_price=max_price,
-        min_bedrooms=min_bedrooms,
-        min_area=min_area,
-        max_car_min=max_car_min,
-        neighborhood=neighborhood,
+        q=f_q or None,
+        max_price=f_max_price,
+        min_bedrooms=f_min_bedrooms,
+        min_area=f_min_area,
+        max_car_min=f_max_car_min,
+        neighborhood=None,
         sort=sort,
     )
 
@@ -218,11 +264,11 @@ def dashboard(
     # querystring base (preserva filtros/sort/per_page; o page é anexado nos links)
     base_params: dict[str, str | int] = {"sort": sort, "per_page": per_page}
     for key, value in (
-        ("q", q or neighborhood or None),
-        ("max_price", int(max_price) if max_price else None),
-        ("min_bedrooms", min_bedrooms),
-        ("min_area", int(min_area) if min_area else None),
-        ("max_car_min", int(max_car_min) if max_car_min else None),
+        ("q", f_q or None),
+        ("max_price", int(f_max_price) if f_max_price else None),
+        ("min_bedrooms", f_min_bedrooms),
+        ("min_area", int(f_min_area) if f_min_area else None),
+        ("max_car_min", int(f_max_car_min) if f_max_car_min else None),
     ):
         if value not in (None, ""):
             base_params[key] = value
@@ -243,11 +289,11 @@ def dashboard(
             "sort": sort,
             "sort_labels": _SORT_LABELS,
             "filters": {
-                "q": q or neighborhood or "",
-                "max_price": max_price,
-                "min_bedrooms": min_bedrooms,
-                "min_area": min_area,
-                "max_car_min": max_car_min,
+                "q": f_q,
+                "max_price": f_max_price,
+                "min_bedrooms": f_min_bedrooms,
+                "min_area": f_min_area,
+                "max_car_min": f_max_car_min,
             },
             "pagination": {
                 "total": total,
