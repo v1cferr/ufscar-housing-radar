@@ -12,14 +12,15 @@ ENV UV_COMPILE_BYTECODE=1 \
 
 WORKDIR /app
 
-# Instala dependências primeiro (cache de camada).
+# Instala dependências primeiro (cache de camada). Inclui o extra "ors"
+# (OpenRouteService) para o refino de rotas reais via `housing-radar refine-ors`.
 COPY pyproject.toml uv.lock README.md ./
-RUN uv sync --frozen --no-install-project --no-dev
+RUN uv sync --frozen --no-install-project --no-dev --extra ors
 
 # Copia o código e instala o projeto no venv.
 COPY src ./src
 COPY data/seed ./data/seed
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --extra ors
 
 EXPOSE 8000
 

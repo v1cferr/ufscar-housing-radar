@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from sqlmodel import select
 
@@ -105,3 +106,38 @@ def run_all(collector: Collector, max_pages: int | None = None) -> dict[str, int
     ingest_stats = ingest(collector, max_pages=max_pages)
     enrich_stats = enrich()
     return {**ingest_stats, **enrich_stats}
+
+
+def refine_routes_ors(*, limit: int = 40, delay: float = 5.0) -> dict:
+    """Refina o deslocamento dos top-N por score com ORS (real, por modal) e re-scoreia.
+
+    Direcionado de propósito: a cota grátis do ORS (~2000/dia, ~40/min) não comporta
+    o acervo inteiro (3 chamadas por imóvel). O `delay` mantém a taxa abaixo do limite.
+    """
+    travel = TravelCalculator(use_ors=True)
+    if not travel.ors_enabled:
+        return {
+            "erro": "ORS indisponível: faltou HR_ORS_API_KEY ou o pacote (uv sync --extra ors)."
+        }
+
+    cfg = ScoreConfig()
+    refined = 0
+    with session_scope() as session:
+        candidates = session.exec(
+            select(Listing).where(Listing.status == "active", Listing.lat.is_not(None))
+        ).all()
+        candidates = sorted(candidates, key=lambda x: (x.score is None, -(x.score or 0)))[:limit]
+        for i, listing in enumerate(candidates):
+            result = travel.compute(listing.lat, listing.lon)
+            if result and result.provider == "ors":
+                listing.dist_ufscar_km = result.dist_km
+                listing.time_walk_min = result.time_walk_min
+                listing.time_bike_min = result.time_bike_min
+                listing.time_car_min = result.time_car_min
+                listing.travel_provider = "ors"
+                listing.score, listing.score_breakdown = score_listing(listing, cfg)
+                session.add(listing)
+                refined += 1
+            if delay and i < len(candidates) - 1:
+                time.sleep(delay)
+    return {"refinados_ors": refined, "de": len(candidates)}

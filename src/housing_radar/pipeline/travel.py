@@ -51,11 +51,14 @@ def _estimate(origin: tuple[float, float], dest: tuple[float, float]) -> TravelR
 
 
 class TravelCalculator:
-    def __init__(self) -> None:
+    def __init__(self, use_ors: bool = False) -> None:
+        # ORS é opt-in (use_ors=True). A cota grátis da HeiGIT é pequena
+        # (~2000 req/dia, ~40/min) e cada imóvel custa 3 chamadas — então o
+        # ORS só deve refinar um subconjunto pequeno, nunca o acervo inteiro.
         settings = get_settings()
         self.dest = (settings.ufscar_lat, settings.ufscar_lon)
         self._ors = None
-        if settings.ors_api_key:
+        if use_ors and settings.ors_api_key:
             try:
                 import openrouteservice  # type: ignore
 
@@ -67,6 +70,10 @@ class TravelCalculator:
                     "HR_ORS_API_KEY setada mas pacote 'openrouteservice' ausente. "
                     "Rode `uv sync --extra ors`. Usando estimativa."
                 )
+
+    @property
+    def ors_enabled(self) -> bool:
+        return self._ors is not None
 
     def _via_ors(self, origin: tuple[float, float]) -> TravelResult | None:
         try:

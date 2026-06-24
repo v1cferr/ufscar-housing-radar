@@ -52,10 +52,15 @@ uv run housing-radar run all -p 3       # ou: run cardinali / run roca / ...
 uv run housing-radar collect roca --full --cap 300   # repita p/ avançar 300 por vez
 uv run housing-radar enrich
 
-# 3) Exportar planilha para mandar pra avaliação
+# 3) (opcional) Refinar os top candidatos com tempos REAIS por modal (OpenRouteService)
+uv sync --extra ors                          # instala o cliente ORS
+# defina HR_ORS_API_KEY no .env (chave grátis em https://openrouteservice.org)
+uv run housing-radar refine-ors --limit 40   # só os top-40 por score (cota grátis é pequena)
+
+# 4) Exportar planilha para mandar pra avaliação
 uv run housing-radar export --fmt xlsx     # -> exports/apartamentos_ufscar.xlsx
 
-# 4) Subir a API + dashboard
+# 5) Subir a API + dashboard
 uv run housing-radar serve --reload        # http://localhost:8000
 ```
 
@@ -68,7 +73,8 @@ Copie `.env.example` para `.env` para ajustar coordenadas da UFSCar, chave do OR
 | `init-db` | Cria as tabelas |
 | `import-csv PATH` | Importa anúncios manuais de um CSV |
 | `collect [all\|cardinali\|roca\|iplano\|top\|olx]` | Coleta de uma/todas as fontes (sem enriquecer) |
-| `enrich` | Geocoda, calcula tempo até a UFSCar e (re)calcula o score |
+| `enrich` | Geocoda, calcula tempo até a UFSCar (estimativa) e (re)calcula o score |
+| `refine-ors --limit N` | Refina os top-N por score com tempos reais do ORS (cota-aware) |
 | `run [all\|...]` | Pipeline completo (coleta + enrich) |
 | `export --fmt xlsx\|csv` | Exporta o ranking para planilha |
 | `stats --top N` | Resumo + melhores anúncios |

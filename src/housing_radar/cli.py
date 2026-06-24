@@ -15,7 +15,7 @@ from housing_radar.config import get_settings
 from housing_radar.db import init_db, session_scope
 from housing_radar.models import Listing
 from housing_radar.pipeline.run import enrich as run_enrich
-from housing_radar.pipeline.run import ingest
+from housing_radar.pipeline.run import ingest, refine_routes_ors
 
 app = typer.Typer(
     help="Pipeline para coletar, ranquear e servir apartamentos próximos à UFSCar.",
@@ -116,6 +116,19 @@ def enrich(
     init_db()
     stats = run_enrich(limit=limit, regeocode=regeocode)
     console.print(f"[green]Enriquecimento concluído:[/green] {stats}")
+
+
+@app.command("refine-ors")
+def refine_ors_cmd(
+    limit: int = typer.Option(40, "--limit", "-n", help="quantos top-por-score refinar"),
+    delay: float = typer.Option(5.0, "--delay", help="pausa (s) entre imóveis (respeita ~40/min)"),
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
+) -> None:
+    """Refina o deslocamento dos top-N por score com OpenRouteService (tempos reais por modal)."""
+    _setup_logging(verbose)
+    init_db()
+    stats = refine_routes_ors(limit=limit, delay=delay)
+    console.print(f"[green]Refino ORS:[/green] {stats}")
 
 
 @app.command()
