@@ -121,7 +121,7 @@ class MSYSCollector(Collector):
             source_id=str(idt) if idt else None,
             url=url,
             title=d.get("desTitleSite"),
-            price=d.get("valSales"),
+            price=d.get("valSales") or None,  # 0/None = preço sob consulta -> None
             rent_price=d.get("valLocation") or None,  # aluguel, quando também loca
             condo_fee=d.get("valCondominium") or None,
             area_m2=_f(d.get("prop_char_2")),

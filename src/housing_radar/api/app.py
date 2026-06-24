@@ -5,9 +5,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from contextlib import asynccontextmanager
-from math import ceil
 from pathlib import Path
-from urllib.parse import urlencode
 
 from fastapi import FastAPI, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -80,28 +78,6 @@ _SORTS = {
     "car": lambda x: (x.time_car_min is None, x.time_car_min or 0),
     "area": lambda x: (x.area_m2 is None, -(x.area_m2 or 0)),
 }
-_SORT_LABELS = {
-    "score": "Score (maior primeiro)",
-    "price": "Preço (menor primeiro)",
-    "car": "Tempo de carro (menor primeiro)",
-    "area": "Área (maior primeiro)",
-}
-
-# --- Paginação --------------------------------------------------------------
-_PER_PAGE_OPTIONS = [10, 20, 30]
-_PER_PAGE_DEFAULT = 20
-
-
-def _parse_per_page(value: str | None) -> int | str:
-    """'10'/'20'/'30' -> int; 'all' -> 'all'; resto -> default."""
-    if value == "all":
-        return "all"
-    try:
-        n = int(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return _PER_PAGE_DEFAULT
-    return n if n in _PER_PAGE_OPTIONS else _PER_PAGE_DEFAULT
-
 
 # --- Dedup entre fontes (o mesmo imóvel em VivaReal/ZAP/imovelweb/imobiliária) -
 def _norm_txt(value: str | None) -> str:
@@ -143,22 +119,6 @@ def _collapse_duplicates(listings: list[Listing], sort_key):
             }
     reps.sort(key=sort_key)
     return reps, meta
-
-
-def _page_window(page: int, total_pages: int, span: int = 2) -> list[int | None]:
-    """Números de página a exibir (com None marcando reticências)."""
-    wanted = {1, total_pages}
-    for p in range(page - span, page + span + 1):
-        if 1 <= p <= total_pages:
-            wanted.add(p)
-    out: list[int | None] = []
-    prev = 0
-    for p in sorted(wanted):
-        if p - prev > 1:
-            out.append(None)
-        out.append(p)
-        prev = p
-    return out
 
 
 @asynccontextmanager
@@ -243,8 +203,10 @@ def api_listings(
     max_car_min: str | None = Query(default=None),
     neighborhood: str | None = Query(default=None),
     sort: str = Query(default="score"),
-    limit: int = Query(default=100, le=1000),
+    group: str = Query(default="1"),
+    limit: int = Query(default=5000, le=5000),
 ) -> JSONResponse:
+    sort = sort if sort in _SORTS else "score"
     listings = _query_listings(
         q=q,
         max_price=_to_float(max_price),
@@ -254,114 +216,36 @@ def api_listings(
         neighborhood=neighborhood,
         sort=sort,
     )
-    return JSONResponse([item.model_dump(mode="json") for item in listings[:limit]])
+    dup_meta: dict[int, dict] = {}
+    if group != "0":
+        listings, dup_meta = _collapse_duplicates(listings, _SORTS[sort])
+
+    out = []
+    for item in listings[:limit]:
+        data = item.model_dump(mode="json")
+        meta = dup_meta.get(item.id)
+        data["dup_count"] = meta["count"] if meta else 1
+        data["dup_sources"] = meta["sources"] if meta else [item.source]
+        out.append(data)
+    return JSONResponse(out)
 
 
 @app.get("/", response_class=HTMLResponse)
-def dashboard(
-    request: Request,
-    q: str | None = Query(default=None),
-    # Aceitos como string p/ tolerar campos vazios de formulário ("" -> sem filtro).
-    max_price: str | None = Query(default=None),
-    min_bedrooms: str | None = Query(default=None),
-    min_area: str | None = Query(default=None),
-    max_car_min: str | None = Query(default=None),
-    neighborhood: str | None = Query(default=None),
-    sort: str = Query(default="score"),
-    page: int = Query(default=1, ge=1),
-    per_page: str = Query(default=str(_PER_PAGE_DEFAULT)),
-    group: str = Query(default="1"),
-) -> HTMLResponse:
+def dashboard(request: Request) -> HTMLResponse:
+    """Renderiza o shell; o grid (Tabulator) carrega os dados via /api/listings."""
     settings = get_settings()
     base_url = settings.site_base_url.rstrip("/")
-    sort = sort if sort in _SORTS else "score"
-    per = _parse_per_page(per_page)
-    grouped = group != "0"
-
-    # Coerção tolerante (string vazia / inválida -> None).
-    f_max_price = _to_float(max_price)
-    f_min_bedrooms = _to_int(min_bedrooms)
-    f_min_area = _to_float(min_area)
-    f_max_car_min = _to_float(max_car_min)
-    f_q = (q or neighborhood or "").strip()
-
-    listings = _query_listings(
-        q=f_q or None,
-        max_price=f_max_price,
-        min_bedrooms=f_min_bedrooms,
-        min_area=f_min_area,
-        max_car_min=f_max_car_min,
-        neighborhood=None,
-        sort=sort,
-    )
-
-    dup_meta: dict[int, dict] = {}
-    if grouped:
-        listings, dup_meta = _collapse_duplicates(listings, _SORTS[sort])
-
-    total = len(listings)
-    if not isinstance(per, int) or total == 0:
-        page, total_pages, page_items = 1, 1, listings
-        first = 1 if total else 0
-    else:
-        total_pages = max(1, ceil(total / per))
-        page = min(max(1, page), total_pages)
-        start = (page - 1) * per
-        page_items = listings[start : start + per]
-        first = start + 1
-
-    # querystring base (preserva filtros/sort/per_page/group; o page é anexado nos links)
-    base_params: dict[str, str | int] = {"sort": sort, "per_page": per_page, "group": group}
-    for key, value in (
-        ("q", f_q or None),
-        ("max_price", int(f_max_price) if f_max_price else None),
-        ("min_bedrooms", f_min_bedrooms),
-        ("min_area", int(f_min_area) if f_min_area else None),
-        ("max_car_min", int(f_max_car_min) if f_max_car_min else None),
-    ):
-        if value not in (None, ""):
-            base_params[key] = value
-
-    # querystring com o agrupamento invertido (para o link de alternância)
-    toggle_params = dict(base_params)
-    toggle_params["group"] = "0" if grouped else "1"
-    toggle_query = urlencode(toggle_params)
-
     return templates.TemplateResponse(
         request,
         "index.html",
         {
-            "listings": page_items,
-            "dup_meta": dup_meta,
-            "grouped": grouped,
-            "toggle_query": toggle_query,
             "destination": settings.destination_label,
+            "neighborhoods": _all_neighborhoods(),
             "meta": {
                 "title": settings.site_title,
                 "description": settings.site_description,
                 "url": base_url + "/",
                 "image": base_url + "/static/og-image.png",
-            },
-            "neighborhoods": _all_neighborhoods(),
-            "sort": sort,
-            "sort_labels": _SORT_LABELS,
-            "filters": {
-                "q": f_q,
-                "max_price": f_max_price,
-                "min_bedrooms": f_min_bedrooms,
-                "min_area": f_min_area,
-                "max_car_min": f_max_car_min,
-            },
-            "pagination": {
-                "total": total,
-                "page": page,
-                "total_pages": total_pages,
-                "per_page": per_page,  # string original ("20" ou "all")
-                "per_page_options": _PER_PAGE_OPTIONS,
-                "first": first,
-                "last": first + len(page_items) - 1 if page_items else 0,
-                "pages": _page_window(page, total_pages),
-                "query_base": urlencode(base_params),
             },
         },
     )

@@ -12,9 +12,10 @@ lista qualificada e comparável para discutir com mais maturidade na hora da dec
 
 ## Stack
 
-`uv` + Python 3.13 · **FastAPI** (API + dashboard) · SQLite (via SQLModel) · `httpx` +
-BeautifulSoup (coleta) · `geopy`/Nominatim (geocoding) · Docker + docker-compose, atrás
-de **Caddy** (TLS + domínio).
+`uv` + Python 3.13 · **FastAPI** (API JSON + shell HTML) · **Tabulator** (grid
+interativo no cliente — ordena/filtra/pagina na hora; vendorizado, sem build) ·
+SQLite (via SQLModel) · `httpx` + BeautifulSoup (coleta) · `geopy`/Nominatim (geocoding) ·
+Docker + docker-compose, atrás de **Caddy** (TLS + domínio).
 
 ## Como funciona
 

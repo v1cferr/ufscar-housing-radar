@@ -11,12 +11,10 @@
   <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
 
-  <!-- Favicons -->
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
 
-  <!-- OpenGraph (Facebook, WhatsApp, LinkedIn, Telegram…) -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="{{ meta.title }}">
   <meta property="og:locale" content="pt_BR">
@@ -27,14 +25,11 @@
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="{{ meta.title }} — apartamentos perto da UFSCar">
-
-  <!-- Twitter / X -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ meta.title }}">
   <meta name="twitter:description" content="{{ meta.description }}">
   <meta name="twitter:image" content="{{ meta.image }}">
 
-  <!-- Aplica o tema antes da pintura para evitar "flash" da cor errada. -->
   <script>
     (function () {
       try {
@@ -44,8 +39,9 @@
       } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }
     })();
   </script>
+
+  <link rel="stylesheet" href="/static/vendor/tabulator.min.css">
   <style>
-    /* ---- Tokens de tema --------------------------------------------------- */
     [data-theme="dark"] {
       --bg:#0f1115; --surface:#181b22; --surface-2:#1f232c; --line:#272b34;
       --txt:#e6e8ec; --mut:#9aa3b2; --accent:#4f8cff; --accent-soft:#23304a;
@@ -63,144 +59,100 @@
     body { margin:0; background:var(--bg); color:var(--txt);
            font:15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 
-    /* ---- Topbar ----------------------------------------------------------- */
     .topbar { display:flex; align-items:flex-start; justify-content:space-between;
-              gap:16px; padding:20px 16px 12px; max-width:1280px; margin:0 auto; }
+              gap:16px; padding:20px 16px 12px; max-width:1380px; margin:0 auto; }
     h1 { margin:0; font-size:20px; letter-spacing:-.01em; }
     .sub { color:var(--mut); font-size:13px; margin-top:4px; }
     .sub b { color:var(--txt); font-weight:600; }
     #theme-toggle { flex:0 0 auto; background:var(--surface); color:var(--txt);
             border:1px solid var(--line); border-radius:999px; padding:8px 14px;
-            font-size:13px; font-weight:600; cursor:pointer; display:flex;
-            align-items:center; gap:7px; }
+            font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:7px; }
     #theme-toggle:hover { border-color:var(--accent); }
 
-    .wrap { padding:0 16px 56px; max-width:1280px; margin:0 auto; }
+    .wrap { padding:0 16px 56px; max-width:1380px; margin:0 auto; }
 
-    /* ---- Filtros ---------------------------------------------------------- */
-    form.filters { display:grid; gap:10px; margin:8px 0 14px;
-            grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); align-items:end; }
-    form.filters .field { display:flex; flex-direction:column; gap:5px; min-width:0; }
-    form.filters label { font-size:12px; color:var(--mut); font-weight:600; }
-    form.filters input, form.filters select {
-            width:100%; background:var(--surface); border:1px solid var(--line);
-            color:var(--txt); border-radius:10px; padding:10px 11px; font-size:14px;
-            appearance:none; }
-    form.filters input:focus, form.filters select:focus {
-            outline:none; border-color:var(--accent);
+    .toolbar { display:grid; gap:10px; margin:8px 0 12px; align-items:end;
+            grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); }
+    .toolbar .field { display:flex; flex-direction:column; gap:5px; min-width:0; }
+    .toolbar label { font-size:12px; color:var(--mut); font-weight:600; }
+    .toolbar input { width:100%; background:var(--surface); border:1px solid var(--line);
+            color:var(--txt); border-radius:10px; padding:10px 11px; font-size:14px; }
+    .toolbar input:focus { outline:none; border-color:var(--accent);
             box-shadow:0 0 0 3px var(--accent-soft); }
-    .actions { display:flex; gap:8px; }
-    .actions button, .actions a { flex:1; text-align:center; border-radius:10px;
-            padding:10px 14px; font-size:14px; font-weight:600; cursor:pointer;
-            text-decoration:none; }
-    .actions button { background:var(--accent); color:#fff; border:0; }
-    .actions a.clear { background:transparent; color:var(--mut);
-            border:1px solid var(--line); }
-    .actions a.clear:hover { color:var(--txt); border-color:var(--accent); }
+    .toolbar .search { grid-column:1 / -1; }
+    .toolbar .inline { flex-direction:row; align-items:center; gap:8px; }
+    .toolbar .inline input { width:auto; }
+    .toolbar .actions { display:flex; gap:8px; align-items:center; }
+    .btn { background:transparent; color:var(--mut); border:1px solid var(--line);
+            border-radius:10px; padding:10px 14px; font-size:14px; font-weight:600; cursor:pointer; }
+    .btn:hover { color:var(--txt); border-color:var(--accent); }
 
-    /* ---- Legenda ---------------------------------------------------------- */
     .legend { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center;
-            color:var(--mut); font-size:12.5px; margin:0 2px 14px; }
+            color:var(--mut); font-size:12.5px; margin:0 2px 12px; }
     .legend .dot { display:inline-block; width:9px; height:9px; border-radius:50%;
             margin-right:5px; vertical-align:middle; }
     .legend .pill { display:inline-flex; align-items:center; padding:2px 9px;
             border-radius:999px; background:var(--chip); font-weight:600; }
-    .legend a.toggle { text-decoration:none; color:var(--accent);
-            border:1px solid var(--line); cursor:pointer; }
-    .legend a.toggle:hover { border-color:var(--accent); }
+    .legend .count b { color:var(--txt); }
 
-    /* ---- Tabela (desktop) ------------------------------------------------- */
-    .tablewrap { border:1px solid var(--line); border-radius:14px; overflow:hidden;
-            background:var(--surface); box-shadow:0 1px 3px var(--shadow); }
-    .scroll { overflow-x:auto; }
-    table { border-collapse:collapse; width:100%; }
-    thead th { position:sticky; top:0; background:var(--surface-2); color:var(--mut);
-            font-size:11.5px; text-transform:uppercase; letter-spacing:.04em;
-            font-weight:700; text-align:left; padding:11px 12px; white-space:nowrap;
-            border-bottom:1px solid var(--line); z-index:1; }
-    thead th .u { color:var(--mut); opacity:.7; font-weight:600;
-            text-transform:none; letter-spacing:0; }
-    th.num, td.num { text-align:right; }
-    tbody td { padding:11px 12px; border-bottom:1px solid var(--line);
-            white-space:nowrap; vertical-align:middle; }
-    tbody tr:last-child td { border-bottom:0; }
-    tbody tr:hover { background:var(--surface-2); }
-    td.num { font-variant-numeric:tabular-nums; }
-    .title-main { font-weight:600; }
-    .title-sub { color:var(--mut); font-size:12px; }
-    a.lnk { color:var(--accent); text-decoration:none; }
-    a.lnk:hover { text-decoration:underline; }
-    .dash { color:var(--mut); }
-    .chip { display:inline-block; padding:2px 9px; border-radius:999px;
-            background:var(--chip); color:var(--mut); font-size:12px; font-weight:600; }
-    .real { color:var(--accent); font-weight:700; margin-left:3px; }
-
-    .score { display:inline-block; min-width:40px; text-align:center; font-weight:800;
-            padding:4px 9px; border-radius:999px; background:var(--mid-bg);
-            color:var(--mid-tx); font-variant-numeric:tabular-nums; }
+    .score { display:inline-block; min-width:38px; text-align:center; font-weight:800;
+            padding:3px 8px; border-radius:999px; background:var(--mid-bg); color:var(--mid-tx);
+            font-variant-numeric:tabular-nums; }
     .score.high { background:var(--hi-bg); color:var(--hi-tx); }
     .score.low  { background:var(--lo-bg); color:var(--lo-tx); }
+    .lnk { color:var(--accent); text-decoration:none; font-weight:600; }
+    .lnk:hover { text-decoration:underline; }
+    .title-main { line-height:1.3; }
+    .dup { color:var(--mut); font-size:12px; margin-top:2px; }
+    .sub { color:var(--mut); font-size:12px; }
+    .dash { color:var(--mut); }
+    .chip { display:inline-block; padding:2px 9px; border-radius:999px; background:var(--chip);
+            color:var(--mut); font-size:12px; font-weight:600; }
+    .real { color:var(--accent); font-weight:700; margin-left:3px; }
 
-    .empty { color:var(--mut); padding:48px 24px; text-align:center;
-            border:1px dashed var(--line); border-radius:14px; }
-    code { background:var(--surface-2); padding:1px 6px; border-radius:6px; font-size:13px; }
-
-    /* ---- Paginação -------------------------------------------------------- */
-    .pager { display:flex; flex-wrap:wrap; gap:6px; align-items:center;
-            justify-content:center; margin:18px 0 4px; }
-    .pager .pg { min-width:38px; text-align:center; padding:8px 12px;
-            border:1px solid var(--line); border-radius:10px; background:var(--surface);
-            color:var(--txt); text-decoration:none; font-size:14px; font-weight:600;
-            font-variant-numeric:tabular-nums; }
-    .pager a.pg:hover { border-color:var(--accent); color:var(--accent); }
-    .pager .pg.current { background:var(--accent); border-color:var(--accent); color:#fff; }
-    .pager .pg.nav { font-weight:600; }
-    .pager .pg.disabled { color:var(--mut); opacity:.5; cursor:default; }
-    .pager .gap { color:var(--mut); padding:0 2px; }
-
-    /* ---- Mobile: a tabela vira cartões ------------------------------------ */
-    @media (max-width: 760px) {
-      thead { display:none; }
-      table, tbody { display:block; }
-      tbody tr { display:flex; flex-direction:column; background:var(--surface);
-            border:1px solid var(--line); border-radius:14px; margin-bottom:12px;
-            overflow:hidden; box-shadow:0 1px 3px var(--shadow); }
-      .tablewrap { border:0; background:transparent; box-shadow:none; }
-      .scroll { overflow:visible; }
-      tbody td { display:flex; align-items:center; justify-content:space-between;
-            gap:14px; padding:9px 14px; border-bottom:1px solid var(--line);
-            white-space:normal; text-align:right; }
-      tbody td::before { content:attr(data-label); color:var(--mut); font-weight:600;
-            font-size:12.5px; text-align:left; text-transform:uppercase;
-            letter-spacing:.03em; flex:0 0 auto; }
-      tbody tr td:last-child { border-bottom:0; }
-      /* Título no topo do cartão, sem rótulo, ocupando a faixa toda. */
-      td.cell-title { order:-2; display:block; text-align:left;
-            background:var(--surface-2); padding:12px 14px; }
-      td.cell-title::before { content:none; }
-      .title-main { font-size:16px; }
-      td.cell-score { order:-1; }
-    }
+    /* ---- Tema do Tabulator (sobrescreve o default cinza) ------------------- */
+    .tabulator { background:transparent; border:1px solid var(--line); border-radius:14px;
+            font-size:14px; box-shadow:0 1px 3px var(--shadow); overflow:hidden; }
+    .tabulator .tabulator-header { background:var(--surface-2); border-bottom:1px solid var(--line);
+            color:var(--mut); }
+    .tabulator .tabulator-header .tabulator-col { background:var(--surface-2); border-right:0; }
+    .tabulator .tabulator-header .tabulator-col .tabulator-col-content { padding:10px 12px; }
+    .tabulator .tabulator-header .tabulator-col-title { color:var(--mut); font-weight:700;
+            font-size:11.5px; text-transform:uppercase; letter-spacing:.03em; }
+    .tabulator .tabulator-header .tabulator-col.tabulator-sortable:hover { background:var(--line); }
+    .tabulator-row { background:var(--surface); border-bottom:1px solid var(--line); color:var(--txt); }
+    .tabulator-row.tabulator-row-even { background:var(--surface); }
+    .tabulator-row.tabulator-selectable:hover, .tabulator-row:hover { background:var(--surface-2); }
+    .tabulator .tabulator-cell { border-right:0; padding:9px 12px; }
+    .tabulator .tabulator-cell.tabulator-row-header { background:var(--surface-2); }
+    .tabulator-row .tabulator-cell.tabulator-frozen { background:var(--surface); }
+    .tabulator .tabulator-footer { background:var(--surface-2); border-top:1px solid var(--line);
+            color:var(--mut); }
+    .tabulator .tabulator-footer .tabulator-page,
+    .tabulator .tabulator-footer .tabulator-pages { color:var(--txt); }
+    .tabulator .tabulator-footer .tabulator-page { background:var(--surface); border:1px solid var(--line);
+            border-radius:8px; margin:2px; }
+    .tabulator .tabulator-footer .tabulator-page:not(.disabled):hover { background:var(--accent);
+            color:#fff; border-color:var(--accent); }
+    .tabulator .tabulator-footer .tabulator-page.active { background:var(--accent); color:#fff;
+            border-color:var(--accent); }
+    .tabulator .tabulator-footer .tabulator-page-size { background:var(--surface); color:var(--txt);
+            border:1px solid var(--line); border-radius:8px; padding:4px 8px; }
+    .tabulator-row .tabulator-responsive-collapse { border-top:1px solid var(--line); padding:8px 12px; }
+    .tabulator-responsive-collapse table tr td { color:var(--txt); }
+    .tabulator-responsive-collapse table tr td:first-of-type { color:var(--mut); }
+    .tabulator .tabulator-col-sorter .tabulator-arrow { border-bottom-color:var(--mut); }
+    .tabulator .tabulator-col[aria-sort="ascending"] .tabulator-arrow,
+    .tabulator .tabulator-col[aria-sort="descending"] .tabulator-arrow { border-bottom-color:var(--accent); }
+    .tabulator-row .tabulator-responsive-collapse-toggle { background:var(--accent); }
+    .tabulator .tabulator-placeholder { color:var(--mut); }
   </style>
 </head>
 <body>
-  {# ---- Macros de célula (formatação + unidade + fallback) ---- #}
-  {% macro money(v) %}{% if v %}R$&nbsp;{{ v|int_br }}{% else %}<span class="dash">—</span>{% endif %}{% endmacro %}
-  {% macro money_mo(v) %}{% if v %}R$&nbsp;{{ v|int_br }}<span class="title-sub">/mês</span>{% else %}<span class="dash">—</span>{% endif %}{% endmacro %}
-  {% macro rent_cell(price, rent) %}{% if rent %}R$&nbsp;{{ rent|int_br }}<span class="title-sub">/mês</span>{% if price and price >= 50000 %}<div class="title-sub" title="Anos de aluguel que somam o preço de venda (preço ÷ aluguel anual). Menor = comprar compensa mais.">≈ {{ (price / (rent * 12))|dec_br(1) }} anos</div>{% endif %}{% else %}<span class="dash">—</span>{% endif %}{% endmacro %}
-  {% macro area(v) %}{% if v %}{{ v|round|int }}&nbsp;m²{% else %}<span class="dash">—</span>{% endif %}{% endmacro %}
-  {% macro km(v) %}{% if v %}{{ v|dec_br(1) }}&nbsp;km{% else %}<span class="dash">—</span>{% endif %}{% endmacro %}
-  {% macro mins(v, real) %}{% if v %}{{ v|round|int }}&nbsp;min{% if real %}<span class="real" title="tempo real (OpenRouteService)">•</span>{% endif %}{% else %}<span class="dash">—</span>{% endif %}{% endmacro %}
-  {% macro intv(v) %}{% if v is not none %}{{ v }}{% else %}<span class="dash">—</span>{% endif %}{% endmacro %}
-
   <header class="topbar">
     <div>
       <h1>UFSCar Housing Radar</h1>
-      <div class="sub">
-        Apartamentos perto da <b>{{ destination }}</b> ·
-        {% if pagination.total %}mostrando <b>{{ pagination.first }}–{{ pagination.last }}</b> de <b>{{ pagination.total }}</b>{% else %}<b>0</b> resultados{% endif %} ·
-        ordenado por {{ sort_labels[sort]|lower }}
-      </div>
+      <div class="sub">Apartamentos perto da <b>{{ destination }}</b> — ordene clicando no cabeçalho, filtre na hora.</div>
     </div>
     <button id="theme-toggle" type="button" aria-label="Alternar tema">
       <span id="theme-ico">◐</span> <span id="theme-lbl">Tema</span>
@@ -208,172 +160,153 @@
   </header>
 
   <div class="wrap">
-    <form class="filters" method="get">
-      <div class="field" style="grid-column:1 / -1;">
-        <label for="q">Buscar (título ou bairro)</label>
-        <input id="q" type="search" name="q" value="{{ filters.q }}"
-               list="bairros" placeholder="ex.: Santa Felícia, Jockey Clube…">
+    <div class="toolbar">
+      <div class="field search">
+        <label for="q">Buscar (título, bairro ou fonte)</label>
+        <input id="q" type="search" list="bairros" placeholder="ex.: Santa Felícia, Jockey Clube, vivareal…">
       </div>
+      <div class="field"><label for="max_price">Preço máx. (R$)</label><input id="max_price" type="number" inputmode="numeric" step="10000" placeholder="R$"></div>
+      <div class="field"><label for="min_area">Área mín. (m²)</label><input id="min_area" type="number" inputmode="numeric" step="5" placeholder="m²"></div>
+      <div class="field"><label for="min_bedrooms">Quartos mín.</label><input id="min_bedrooms" type="number" inputmode="numeric" min="0" placeholder="nº"></div>
+      <div class="field"><label for="max_car_min">Carro máx. (min)</label><input id="max_car_min" type="number" inputmode="numeric" min="0" placeholder="min"></div>
       <div class="field">
-        <label for="max_price">Preço máx.</label>
-        <input id="max_price" type="number" name="max_price" inputmode="numeric"
-               value="{{ filters.max_price|int if filters.max_price else '' }}"
-               step="10000" placeholder="R$">
+        <label>&nbsp;</label>
+        <div class="actions">
+          <label class="inline" title="Junta o mesmo imóvel anunciado em fontes diferentes"><input id="group" type="checkbox" checked> Agrupar duplicatas</label>
+          <button id="clear" class="btn" type="button">Limpar</button>
+        </div>
       </div>
-      <div class="field">
-        <label for="min_area">Área mín.</label>
-        <input id="min_area" type="number" name="min_area" inputmode="numeric"
-               value="{{ filters.min_area|int if filters.min_area else '' }}"
-               step="5" min="0" placeholder="m²">
-      </div>
-      <div class="field">
-        <label for="min_bedrooms">Quartos mín.</label>
-        <input id="min_bedrooms" type="number" name="min_bedrooms" inputmode="numeric"
-               value="{{ filters.min_bedrooms if filters.min_bedrooms is not none else '' }}"
-               min="0" placeholder="nº">
-      </div>
-      <div class="field">
-        <label for="max_car_min">Carro máx.</label>
-        <input id="max_car_min" type="number" name="max_car_min" inputmode="numeric"
-               value="{{ filters.max_car_min|int if filters.max_car_min else '' }}"
-               min="0" step="1" placeholder="min até UFSCar">
-      </div>
-      <div class="field">
-        <label for="sort">Ordenar por</label>
-        <select id="sort" name="sort" onchange="this.form.submit()">
-          {% for key, lbl in sort_labels.items() %}
-          <option value="{{ key }}" {{ 'selected' if sort == key }}>{{ lbl }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="field">
-        <label for="per_page">Por página</label>
-        <select id="per_page" name="per_page" onchange="this.form.submit()">
-          {% for n in pagination.per_page_options %}
-          <option value="{{ n }}" {{ 'selected' if pagination.per_page == n|string }}>{{ n }} por página</option>
-          {% endfor %}
-          <option value="all" {{ 'selected' if pagination.per_page == 'all' }}>Todos</option>
-        </select>
-      </div>
-      <div class="field actions">
-        <button type="submit">Filtrar</button>
-        <a class="clear" href="/">Limpar</a>
-      </div>
-    </form>
+    </div>
 
-    <datalist id="bairros">
-      {% for n in neighborhoods %}<option value="{{ n }}"></option>{% endfor %}
-    </datalist>
+    <datalist id="bairros">{% for n in neighborhoods %}<option value="{{ n }}"></option>{% endfor %}</datalist>
 
     <div class="legend">
-      <span><span class="dot" style="background:var(--hi-tx)"></span>Score ≥ 70 (ótimo)</span>
-      <span><span class="dot" style="background:var(--mid-tx)"></span>45–69 (médio)</span>
-      <span><span class="dot" style="background:var(--lo-tx)"></span>&lt; 45 (fraco)</span>
-      <span class="pill">Score 0–100: proximidade · preço · área · condomínio · quartos · vagas · custo-benefício (preço/aluguel)</span>
+      <span class="count"><b id="count">—</b> resultados</span>
+      <span><span class="dot" style="background:var(--hi-tx)"></span>Score ≥ 70</span>
+      <span><span class="dot" style="background:var(--mid-tx)"></span>45–69</span>
+      <span><span class="dot" style="background:var(--lo-tx)"></span>&lt; 45</span>
+      <span class="pill">A pé / Bici / Carro = tempo até a UFSCar (min)</span>
       <span><span class="real">•</span> tempo real (ORS); sem marca = estimativa</span>
-      <a class="pill toggle" href="?{{ toggle_query }}">{% if grouped %}Duplicatas agrupadas — ver todas{% else %}Mostrando todas — agrupar duplicatas{% endif %}</a>
     </div>
 
-    {% if listings %}
-    <div class="tablewrap">
-      <div class="scroll">
-        <table>
-          <thead>
-            <tr>
-              <th class="num">Score</th>
-              <th>Apartamento</th>
-              <th>Bairro</th>
-              <th class="num">Preço</th>
-              <th class="num">Aluguel</th>
-              <th class="num">Condomínio</th>
-              <th class="num">Área</th>
-              <th class="num">Quartos</th>
-              <th class="num">Banheiros</th>
-              <th class="num">Vagas</th>
-              <th class="num">Distância <span class="u">(linha reta)</span></th>
-              <th class="num" title="Tempo de deslocamento até a UFSCar">A pé</th>
-              <th class="num" title="Tempo de deslocamento até a UFSCar">Bicicleta</th>
-              <th class="num" title="Tempo de deslocamento até a UFSCar">Carro</th>
-              <th>Fonte</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for l in listings %}
-            {% set s = l.score or 0 %}
-            {% set real = (l.travel_provider == 'ors') %}
-            <tr>
-              <td class="num cell-score" data-label="Score">
-                <span class="score {{ 'high' if s >= 70 else 'low' if s < 45 else '' }}">{{ '%.0f'|format(s) if l.score is not none else '—' }}</span>
-              </td>
-              <td class="cell-title">
-                <div class="title-main">
-                  {% if l.url %}<a class="lnk" href="{{ l.url }}" target="_blank" rel="noopener">{{ l.title or 'Sem título' }}</a>{% else %}{{ l.title or 'Sem título' }}{% endif %}
-                </div>
-                {% set dm = dup_meta.get(l.id) %}
-                {% if dm %}<div class="title-sub" title="Mesmo imóvel anunciado em {{ dm.count }} fontes">também em {{ dm.count }} fontes: {{ dm.sources|join(', ') }}{% if dm.price_min and dm.price_max and dm.price_min != dm.price_max %} · R$ {{ dm.price_min|int_br }}–{{ dm.price_max|int_br }}{% endif %}</div>{% endif %}
-              </td>
-              <td data-label="Bairro">{{ l.neighborhood or '—' }}</td>
-              <td class="num" data-label="Preço">{{ money(l.price) }}</td>
-              <td class="num" data-label="Aluguel">{{ rent_cell(l.price, l.rent_price) }}</td>
-              <td class="num" data-label="Condomínio">{{ money_mo(l.condo_fee) }}</td>
-              <td class="num" data-label="Área">{{ area(l.area_m2) }}</td>
-              <td class="num" data-label="Quartos">{{ intv(l.bedrooms) }}</td>
-              <td class="num" data-label="Banheiros">{{ intv(l.bathrooms) }}</td>
-              <td class="num" data-label="Vagas">{{ intv(l.parking_spots) }}</td>
-              <td class="num" data-label="Distância (reta)">{{ km(l.dist_ufscar_km) }}</td>
-              <td class="num" data-label="A pé até UFSCar">{{ mins(l.time_walk_min, real) }}</td>
-              <td class="num" data-label="Bicicleta até UFSCar">{{ mins(l.time_bike_min, real) }}</td>
-              <td class="num" data-label="Carro até UFSCar">{{ mins(l.time_car_min, real) }}</td>
-              <td data-label="Fonte"><span class="chip">{{ l.source }}</span></td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    {% if pagination.total_pages > 1 %}
-    <nav class="pager" aria-label="Paginação">
-      {% if pagination.page > 1 %}
-      <a class="pg nav" href="?{{ pagination.query_base }}&page={{ pagination.page - 1 }}" rel="prev">‹ Anterior</a>
-      {% else %}<span class="pg nav disabled">‹ Anterior</span>{% endif %}
-
-      {% for p in pagination.pages %}
-        {% if p is none %}<span class="gap">…</span>
-        {% elif p == pagination.page %}<span class="pg current" aria-current="page">{{ p }}</span>
-        {% else %}<a class="pg" href="?{{ pagination.query_base }}&page={{ p }}">{{ p }}</a>{% endif %}
-      {% endfor %}
-
-      {% if pagination.page < pagination.total_pages %}
-      <a class="pg nav" href="?{{ pagination.query_base }}&page={{ pagination.page + 1 }}" rel="next">Próxima ›</a>
-      {% else %}<span class="pg nav disabled">Próxima ›</span>{% endif %}
-    </nav>
-    {% endif %}
-    {% else %}
-    <div class="empty">
-      Nenhum apartamento encontrado.<br>
-      Ajuste os filtros, ou rode <code>housing-radar run all</code> /
-      <code>housing-radar import-csv</code> para popular a base.
-    </div>
-    {% endif %}
+    <div id="grid"></div>
   </div>
 
+  <script src="/static/vendor/tabulator.min.js"></script>
   <script>
-    (function () {
+    // ---- helpers ----
+    var DASH = '<span class="dash">—</span>';
+    function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }
+    function num(v){ v = (v == null ? '' : v).toString().replace(',', '.').trim();
+      if (v === '') return null; var n = parseFloat(v); return isNaN(n) ? null : n; }
+    function brl(v){ return (v == null) ? DASH : 'R$ ' + Math.round(v).toLocaleString('pt-BR'); }
+
+    // Ordena números colocando vazios (—) SEMPRE por último, nas duas direções.
+    function numSort(a, b, aRow, bRow, column, dir){
+      var ae = (a == null || a === ''), be = (b == null || b === '');
+      if (ae && be) return 0;
+      if (ae || be){ var r = ae ? 1 : -1; return dir === 'desc' ? -r : r; }
+      return a - b;
+    }
+
+    // ---- formatters ----
+    function fScore(c){ var v = c.getValue(); if (v == null) return DASH;
+      var k = v >= 70 ? 'high' : (v < 45 ? 'low' : 'mid');
+      return '<span class="score ' + k + '">' + Math.round(v) + '</span>'; }
+    function fTitle(c){ var d = c.getData(); var t = d.title || 'Sem título';
+      var main = d.url ? '<a class="lnk" href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(t) + '</a>' : esc(t);
+      var dup = (d.dup_count > 1) ? '<div class="dup">também em ' + d.dup_count + ' fontes: ' + esc((d.dup_sources || []).join(', ')) + '</div>' : '';
+      return '<div class="title-main">' + main + '</div>' + dup; }
+    function fPrice(c){ return brl(c.getValue()); }
+    function fRent(c){ var v = c.getValue(); return v == null ? DASH : brl(v) + '<span class="sub">/mês</span>'; }
+    function fArea(c){ var v = c.getValue(); return v == null ? DASH : Math.round(v) + ' m²'; }
+    function fKm(c){ var v = c.getValue(); return v == null ? DASH : v.toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}) + ' km'; }
+    function fInt(c){ var v = c.getValue(); return v == null ? DASH : v; }
+    function fMin(c){ var v = c.getValue(); if (v == null) return DASH;
+      var dot = (c.getData().travel_provider === 'ors') ? '<span class="real" title="tempo real (OpenRouteService)">•</span>' : '';
+      return Math.round(v) + ' min' + dot; }
+    function fChip(c){ return '<span class="chip">' + esc(c.getValue()) + '</span>'; }
+
+    var R = 'right', C = 'center';
+    var columns = [
+      {title:'Score', field:'score', formatter:fScore, hozAlign:C, sorter:numSort, width:84, responsive:0, headerSortStartingDir:'desc'},
+      {title:'Apartamento', field:'title', formatter:fTitle, headerSort:false, widthGrow:3, minWidth:230, responsive:0},
+      {title:'Bairro', field:'neighborhood', minWidth:130, responsive:2},
+      {title:'Preço (R$)', field:'price', formatter:fPrice, sorter:numSort, hozAlign:R, minWidth:110, responsive:0},
+      {title:'Aluguel (R$)', field:'rent_price', formatter:fRent, sorter:numSort, hozAlign:R, minWidth:110, responsive:7},
+      {title:'Cond. (R$)', field:'condo_fee', formatter:fPrice, sorter:numSort, hozAlign:R, minWidth:105, responsive:8},
+      {title:'Área (m²)', field:'area_m2', formatter:fArea, sorter:numSort, hozAlign:R, minWidth:95, responsive:3},
+      {title:'Quartos', field:'bedrooms', formatter:fInt, sorter:numSort, hozAlign:C, minWidth:80, responsive:4},
+      {title:'Banh.', field:'bathrooms', formatter:fInt, sorter:numSort, hozAlign:C, minWidth:72, responsive:9},
+      {title:'Vagas', field:'parking_spots', formatter:fInt, sorter:numSort, hozAlign:C, minWidth:72, responsive:9},
+      {title:'Distância (km)', field:'dist_ufscar_km', formatter:fKm, sorter:numSort, hozAlign:R, minWidth:110, responsive:6},
+      {title:'A pé (min)', field:'time_walk_min', formatter:fMin, sorter:numSort, hozAlign:R, minWidth:95, responsive:10},
+      {title:'Bici (min)', field:'time_bike_min', formatter:fMin, sorter:numSort, hozAlign:R, minWidth:95, responsive:10},
+      {title:'Carro (min)', field:'time_car_min', formatter:fMin, sorter:numSort, hozAlign:R, minWidth:100, responsive:1},
+      {title:'Fonte', field:'source', formatter:fChip, minWidth:95, responsive:5},
+    ];
+
+    var table = new Tabulator('#grid', {
+      layout: 'fitColumns',
+      responsiveLayout: 'collapse',
+      responsiveLayoutCollapseStartOpen: false,
+      placeholder: 'Nenhum apartamento encontrado.',
+      pagination: true,
+      paginationMode: 'local',
+      paginationSize: 20,
+      paginationSizeSelector: [10, 20, 30, 50, 100, true],
+      paginationCounter: 'rows',
+      movableColumns: true,
+      initialSort: [{column:'score', dir:'desc'}],
+      columnDefaults: { headerHozAlign:'left', resizable:true, headerTooltip:true, title:'' },
+      columns: columns,
+    });
+
+    // ---- filtros instantâneos (cliente) ----
+    var els = ['q','max_price','min_area','min_bedrooms','max_car_min'].map(function(i){ return document.getElementById(i); });
+    function applyFilters(){
+      var q = (els[0].value || '').trim().toLowerCase();
+      var maxP = num(els[1].value), minA = num(els[2].value), minB = num(els[3].value), maxCar = num(els[4].value);
+      table.setFilter(function(row){
+        if (q){ var hay = ((row.title||'') + ' ' + (row.neighborhood||'') + ' ' + (row.source||'')).toLowerCase();
+          if (hay.indexOf(q) === -1) return false; }
+        if (maxP != null && (row.price == null || row.price > maxP)) return false;
+        if (minA != null && (row.area_m2 == null || row.area_m2 < minA)) return false;
+        if (minB != null && (row.bedrooms == null || row.bedrooms < minB)) return false;
+        if (maxCar != null && (row.time_car_min == null || row.time_car_min > maxCar)) return false;
+        return true;
+      });
+    }
+    els.forEach(function(el){ el.addEventListener('input', applyFilters); });
+    document.getElementById('clear').addEventListener('click', function(){
+      els.forEach(function(el){ el.value = ''; }); table.clearFilter(); });
+
+    var countEl = document.getElementById('count');
+    table.on('dataFiltered', function(filters, rows){ countEl.textContent = rows.length.toLocaleString('pt-BR'); });
+
+    // ---- carregar dados (re-busca ao alternar agrupamento) ----
+    function load(){
+      var g = document.getElementById('group').checked ? '1' : '0';
+      fetch('/api/listings?limit=5000&group=' + g)
+        .then(function(r){ return r.json(); })
+        .then(function(data){ table.setData(data).then(applyFilters); })
+        .catch(function(){ countEl.textContent = 'erro ao carregar'; });
+    }
+    document.getElementById('group').addEventListener('change', load);
+    table.on('tableBuilt', load);
+
+    // ---- tema ----
+    (function(){
       var root = document.documentElement;
-      var KEY = 'hr-theme';
-      function apply(t) {
-        root.setAttribute('data-theme', t);
-        var ico = document.getElementById('theme-ico');
-        var lbl = document.getElementById('theme-lbl');
+      function apply(t){ root.setAttribute('data-theme', t);
+        var ico = document.getElementById('theme-ico'), lbl = document.getElementById('theme-lbl');
         if (ico) ico.textContent = t === 'dark' ? '☀' : '☾';
-        if (lbl) lbl.textContent = t === 'dark' ? 'Claro' : 'Escuro';
-      }
+        if (lbl) lbl.textContent = t === 'dark' ? 'Claro' : 'Escuro'; }
       apply(root.getAttribute('data-theme') || 'dark');
-      var btn = document.getElementById('theme-toggle');
-      btn.addEventListener('click', function () {
+      document.getElementById('theme-toggle').addEventListener('click', function(){
         var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-        try { localStorage.setItem(KEY, next); } catch (e) {}
+        try { localStorage.setItem('hr-theme', next); } catch (e) {}
         apply(next);
       });
     })();
