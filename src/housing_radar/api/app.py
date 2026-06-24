@@ -99,9 +99,21 @@ def _dup_signature(listing: Listing):
     return (hood, listing.bedrooms or 0, round(listing.area_m2), round(listing.price / 5000) * 5000)
 
 
+def _hi_res(url: str) -> str:
+    """Eleva a foto à melhor resolução disponível (as fontes servem thumb por padrão)."""
+    if "msys-imob" in url:  # MSYS: sufixo 'AT' é miniatura; sem ele vem o original
+        return re.sub(r"AT\.(jpe?g|png|webp)$", r".\1", url, flags=re.I)
+    if "resizedimgs" in url:  # Grupo ZAP redimensiona via querystring
+        return re.sub(r"dimension=\d+x\d+", "dimension=1920x1080", url)
+    if "objectstorage" in url and "_thumb/" in url:  # Cardinali (OCI): foto_thumb -> foto_
+        return url.replace("_thumb/", "_/")
+    return url
+
+
 def _photos(listing: Listing) -> list[str]:
-    """URLs de foto a partir do dado cru (MSYS: jsonPhotos; Grupo ZAP: image)."""
+    """URLs de foto (em alta) a partir do dado cru (MSYS: jsonPhotos; demais: image)."""
     raw = listing.raw or {}
+    urls: list[str] = []
     jp = raw.get("jsonPhotos")
     if isinstance(jp, str):  # MSYS (detalhe) guarda como string JSON
         try:
@@ -109,15 +121,14 @@ def _photos(listing: Listing) -> list[str]:
         except (ValueError, TypeError):
             jp = None
     if isinstance(jp, list):
-        urls = [p.get("urlPhoto") for p in jp if isinstance(p, dict) and p.get("urlPhoto")]
-        if urls:
-            return urls
-    img = raw.get("image")
-    if isinstance(img, list):
-        return [u for u in img if isinstance(u, str)]
-    if isinstance(img, str):
-        return [img]
-    return []
+        urls = [p["urlPhoto"] for p in jp if isinstance(p, dict) and p.get("urlPhoto")]
+    if not urls:
+        img = raw.get("image")
+        if isinstance(img, list):
+            urls = [u for u in img if isinstance(u, str)]
+        elif isinstance(img, str):
+            urls = [img]
+    return [_hi_res(u) for u in urls]
 
 
 def _collapse_duplicates(listings: list[Listing], sort_key):
