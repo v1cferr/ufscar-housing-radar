@@ -80,16 +80,26 @@ Copie `.env.example` para `.env` para ajustar coordenadas da UFSCar, chave do OR
 | `stats --top N` | Resumo + melhores anúncios |
 | `serve` | Sobe a API/dashboard (uvicorn) |
 
-## Deploy (Docker + Caddy)
+## Deploy (Docker + Caddy → radar.v1cferr.dev)
 
-O app escuta HTTP na porta 8000 e fica **atrás do Caddy**, que cuida de TLS e domínio.
+O container escuta em `127.0.0.1:3005` e fica **atrás do Caddy** (systemd), que cuida
+de TLS (cert wildcard `*.v1cferr.dev`) e do domínio.
 
 ```bash
-docker compose up -d --build         # app em 127.0.0.1:8000
+# no servidor:
+git pull
+cp .env.example .env            # ajuste HR_ORS_API_KEY etc. se quiser
+docker compose up -d --build    # app em 127.0.0.1:3005
+
+# popular a base no servidor:
+docker compose exec app housing-radar collect all
+docker compose exec app housing-radar collect roca --full --cap 500
+docker compose exec app housing-radar enrich
+docker compose exec app housing-radar refine-ors --limit 40   # tempos reais (ORS)
 ```
 
-No seu Caddy central (host), adicione o bloco de `Caddyfile.example` (caso A). Para uma
-stack self-contained com Caddy junto: `docker compose --profile edge up -d --build`.
+Caddy: adicione o bloco de `Caddyfile.example` dentro do seu `*.v1cferr.dev { ... }`,
+depois `caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy`.
 
 ## Roadmap
 

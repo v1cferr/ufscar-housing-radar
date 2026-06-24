@@ -10,8 +10,10 @@ services:
       # Persiste o banco no volume montado.
       HR_DATABASE_URL: sqlite:////app/data/housing_radar.db
     ports:
-      # Exposto só localmente; o Caddy (na frente) faz TLS e o domínio público.
-      - "127.0.0.1:8000:8000"
+      # Exposto só no loopback; o Caddy (systemd) na frente faz TLS + domínio.
+      # 3005 segue a faixa 300x dos projetos (spendflow 3001, dash 3003, files 3004)
+      # e evita a 8000 (reservada p/ a API do SpendFlow).
+      - "127.0.0.1:3005:8000"
     volumes:
       - ./data:/app/data
       - ./exports:/app/exports

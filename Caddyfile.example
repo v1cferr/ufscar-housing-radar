@@ -1,21 +1,30 @@
-# Snippet para o seu Caddy. Ajuste o subdomínio e o upstream conforme seu setup.
+# Integração com o seu Caddy (dotfiles/caddy/etc/caddy/Caddyfile).
 #
-# Caso A — Caddy central no host (recomendado pelo que você descreveu):
-#   adicione este bloco ao seu Caddyfile existente. O app escuta em 127.0.0.1:8000.
+# Seu Caddy usa UM bloco curinga `*.v1cferr.dev { ... }` com matchers @host e
+# cert wildcard via DNS challenge (Cloudflare). Então NÃO crie um site novo:
+# adicione o trecho abaixo DENTRO do bloco `*.v1cferr.dev`, junto aos outros
+# projetos, antes do `handle { respond "Subdomínio não configurado" 404 }` final.
+# O container do housing-radar escuta em 127.0.0.1:3005 (ver docker-compose.yml).
+
+    # ---- Projetos ----
+    @radar host radar.v1cferr.dev
+    handle @radar {
+        reverse_proxy 127.0.0.1:3005
+    }
+
+# --- Variante PRIVADA (login só de fora da LAN, igual ao dash) -------------
+# Se preferir não expor seu shortlist publicamente, troque o handle acima por:
 #
-# Caso B — stack self-contained (docker compose --profile edge up):
-#   o upstream vira o nome do serviço: app:8000 (já é o default aqui dentro da rede).
-
-radar.v1cferr.dev {
-	encode zstd gzip
-
-	# Caso A (host): descomente a linha abaixo e comente a do "app:8000".
-	# reverse_proxy 127.0.0.1:8000
-
-	# Caso B (compose com profile edge):
-	reverse_proxy app:8000
-
-	log {
-		output stdout
-	}
-}
+#     @radar host radar.v1cferr.dev
+#     handle @radar {
+#         @radar_externo not remote_ip 192.168.1.0/24 127.0.0.1/8 ::1
+#         basic_auth @radar_externo {
+#             v1cferr {$CADDY_DASH_HASH}   # reaproveita o hash do dash (usuário v1cferr)
+#         }
+#         reverse_proxy 127.0.0.1:3005
+#     }
+#
+# --- Aplicar -----------------------------------------------------------------
+#   /usr/local/bin/caddy validate --config /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+# O certificado TLS é automático (curinga *.v1cferr.dev) — nada a configurar.
