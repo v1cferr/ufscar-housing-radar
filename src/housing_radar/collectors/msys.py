@@ -47,8 +47,11 @@ MSYS_SITES: dict[str, str] = {
 
 _LISTING_PATH = ("props", "initialProps", "pageProps", "template", "data", "initialPropertys")
 _PROPERTY_PATH = ("props", "initialProps", "pageProps", "template", "data", "property")
-# URL de detalhe de apartamento em São Carlos no sitemap.
-_SC_APT_DETAIL = re.compile(r"/imovel/[^/]*/apartament[^/]*/sao-carlos/.+/(\d+)/?$")
+# URL de detalhe de apartamento À VENDA em São Carlos no sitemap.
+# Inclui "venda" e "venda-e-locacao"; exclui "locacao" (aluguel puro).
+_SC_APT_DETAIL = re.compile(
+    r"/imovel/(?:venda-e-locacao|venda)/apartament[^/]*/sao-carlos/.+/(\d+)/?$"
+)
 
 
 def _slug(text: str | None) -> str:

@@ -55,6 +55,19 @@ def test_score_rewards_proximity_and_price():
     assert s1 > s2
 
 
+def test_msys_sitemap_filters_sale_only():
+    from housing_radar.collectors.msys import _SC_APT_DETAIL as rx
+
+    base = "https://x.com.br/imovel"
+    # venda e venda-e-locacao entram; locacao (aluguel puro) fica de fora.
+    assert rx.search(f"{base}/venda/apartamentos/sao-carlos/centro-ed-foo/123").group(1) == "123"
+    assert rx.search(f"{base}/venda-e-locacao/apartamentos/sao-carlos/bar/456").group(1) == "456"
+    assert rx.search(f"{base}/locacao/apartamentos/sao-carlos/baz/789") is None
+    # outras cidades / categorias não entram
+    assert rx.search(f"{base}/venda/casas/sao-carlos/qux/1") is None
+    assert rx.search(f"{base}/venda/apartamentos/campinas/quux/2") is None
+
+
 def test_score_penalizes_implausible_price():
     # R$ 3.200 "à venda" é quase certamente aluguel/erro -> subscore de preço 0.
     suspect = normalize(RawListing(source="m", source_id="r", price=3200, bedrooms=2))
