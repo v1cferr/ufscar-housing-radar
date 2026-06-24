@@ -25,8 +25,9 @@ coletar → normalizar → deduplicar → geocodar → tempo até a UFSCar → s
 - **Coletores plugáveis** (`src/housing_radar/collectors/`):
   - `manual` — CSV (base confiável, ToS-safe);
   - `cardinali` — imobiliária local, HTML, paginação `?pag=N` (acervo grande);
-  - `roca` / `iplano` / `top` — plataforma **MSYS Imob** (um coletor genérico,
-    `msys.py`, cobre as três e já traz lat/lon, dispensando geocoding);
+  - `roca` / `iplano` / `top` / `e2` / `mariaaires` / `center` — imobiliárias na
+    plataforma **MSYS Imob** (um coletor genérico, `msys.py`, cobre todas e já traz
+    lat/lon, dispensando geocoding);
   - `vivareal` / `zap` — **Grupo ZAP** (um coletor genérico, `grupozap.py`, lê os
     ~30 anúncios por página do `application/ld+json` público; best-effort, ToS);
   - `olx` — best-effort (a OLX ignora o filtro de região na URL; rende pouco).
@@ -75,7 +76,7 @@ Copie `.env.example` para `.env` para ajustar coordenadas da UFSCar, chave do OR
 |---|---|
 | `init-db` | Cria as tabelas |
 | `import-csv PATH` | Importa anúncios manuais de um CSV |
-| `collect [all\|cardinali\|roca\|iplano\|top\|olx]` | Coleta de uma/todas as fontes (sem enriquecer) |
+| `collect [all\|<fonte>]` | Coleta de uma/todas as fontes (cardinali, MSYS, vivareal, zap, olx) sem enriquecer |
 | `enrich` | Geocoda, calcula tempo até a UFSCar (estimativa) e (re)calcula o score |
 | `rescore [--backfill-rent]` | Recalcula só o score (preserva tempos do ORS); opcional: preenche aluguel de registros antigos |
 | `refine-ors --limit N` | Refina os top-N por score com tempos reais do ORS (cota-aware) |

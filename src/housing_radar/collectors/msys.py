@@ -39,10 +39,14 @@ from housing_radar.models import RawListing
 logger = logging.getLogger(__name__)
 
 # Imobiliárias conhecidas nesta plataforma (domínio + nome curto p/ Listing.source).
+# Todas compartilham o mesmo frontend MSYS (mesmo __NEXT_DATA__ e /sitemaps/propertys.xml).
 MSYS_SITES: dict[str, str] = {
     "roca": "roca.com.br",
     "iplano": "iplano.com.br",
     "top": "topimoveissaocarlos.com.br",
+    "e2": "imobiliariae2.com.br",
+    "mariaaires": "mariaaires.com.br",
+    "center": "centerimoveis.com",
 }
 
 _LISTING_PATH = ("props", "initialProps", "pageProps", "template", "data", "initialPropertys")
