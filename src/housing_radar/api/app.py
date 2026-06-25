@@ -302,6 +302,95 @@ def _listings_ld(rows: list[dict], base_url: str) -> str:
     return json.dumps(doc, ensure_ascii=False)
 
 
+def _duplicates_of(listing: Listing) -> list[Listing]:
+    """Todos os anúncios do mesmo imóvel (mesma assinatura de dedup), incl. ele."""
+    sig = _dup_signature(listing)
+    if sig[0] == "uniq":
+        return [listing]
+    with session_scope() as session:
+        stmt = select(Listing).where(Listing.status == "active")
+        if listing.bedrooms is not None:
+            stmt = stmt.where(Listing.bedrooms == listing.bedrooms)
+        candidates = session.exec(stmt).all()
+    members = [c for c in candidates if _dup_signature(c) == sig]
+    return members or [listing]
+
+
+def _detail_for_render(listing_id: int) -> dict | None:
+    """Detalhe completo de um imóvel p/ a página /imovel/{id} (fotos + fontes)."""
+    with session_scope() as session:
+        item = session.get(Listing, listing_id)
+        if item is None or item.status != "active":
+            return None
+    row = _render_row(item, with_photo=False)
+    photos = _photos(item)
+    row.update(
+        {
+            "photos": photos,
+            "photo": photos[0] if photos else None,
+            "description": (item.description or "").strip(),  # completa, sem cortar
+            "lat": item.lat,
+            "lon": item.lon,
+            "time_bike_min": item.time_bike_min,
+            "travel_provider": item.travel_provider,
+            "score_breakdown": item.score_breakdown,
+        }
+    )
+    # Todas as fontes onde o imóvel aparece (links diretos p/ cada anúncio).
+    sources: list[dict] = []
+    seen: set[str] = set()
+    for member in _duplicates_of(item):
+        key = member.url or f"{member.source}:{member.id}"
+        if key in seen:
+            continue
+        seen.add(key)
+        sources.append({"source": member.source, "url": member.url})
+    row["sources"] = sources
+    return row
+
+
+def _listing_ld(d: dict, base_url: str) -> str:
+    """JSON-LD schema.org de um único imóvel (Apartment + Offer + geo)."""
+    item: dict = {
+        "@context": "https://schema.org",
+        "@type": "Apartment",
+        "@id": f"{base_url}/imovel/{d['id']}",
+        "url": f"{base_url}/imovel/{d['id']}",
+        "name": d["title"] or "Apartamento",
+    }
+    if d["photos"]:
+        item["image"] = d["photos"][:8]
+    if d.get("description"):
+        item["description"] = d["description"][:500]
+    if d["area_m2"]:
+        item["floorSize"] = {"@type": "QuantitativeValue", "value": d["area_m2"], "unitCode": "MTK"}
+    if d["bedrooms"] is not None:
+        item["numberOfRoomsTotal"] = d["bedrooms"]
+    if d["bathrooms"] is not None:
+        item["numberOfBathroomsTotal"] = d["bathrooms"]
+    if d["neighborhood"]:
+        item["address"] = {
+            "@type": "PostalAddress",
+            "streetAddress": d["neighborhood"],
+            "addressLocality": d["city"] or "São Carlos",
+            "addressRegion": "SP",
+            "addressCountry": "BR",
+        }
+    if d.get("lat") and d.get("lon"):
+        item["geo"] = {"@type": "GeoCoordinates", "latitude": d["lat"], "longitude": d["lon"]}
+    if d["price"]:
+        offer = {
+            "@type": "Offer",
+            "price": int(round(d["price"])),
+            "priceCurrency": "BRL",
+            "availability": "https://schema.org/InStock",
+        }
+        if d["sources"] and d["sources"][0]["url"]:
+            offer["url"] = d["sources"][0]["url"]
+        item["offers"] = offer
+    return json.dumps(item, ensure_ascii=False)
+
+
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
     return {"status": "ok"}
@@ -537,6 +626,51 @@ def lista(
     )
 
 
+@app.get("/imovel/{listing_id}", response_class=HTMLResponse)
+def imovel(request: Request, listing_id: int) -> HTMLResponse:
+    """Página própria de um imóvel (server-rendered) — URL citável, com fotos,
+
+    dados completos, links diretos para todas as fontes e JSON-LD schema.org.
+    """
+    d = _detail_for_render(listing_id)
+    settings = get_settings()
+    base_url = settings.site_base_url.rstrip("/")
+    if d is None:
+        return templates.TemplateResponse(
+            request,
+            "imovel.html",
+            {"row": None, "meta": {"title": "Imóvel não encontrado", "description": "",
+             "url": f"{base_url}/imovel/{listing_id}", "image": base_url + "/static/og-image.png"},
+             "ld_json": "", "destination": settings.destination_label},
+            status_code=404,
+        )
+    facts = []
+    if d["bedrooms"] is not None:
+        facts.append(f"{d['bedrooms']} quartos")
+    if d["area_m2"]:
+        facts.append(f"{int(round(d['area_m2']))} m²")
+    if d["neighborhood"]:
+        facts.append(d["neighborhood"])
+    if d["price"]:
+        facts.append("R$ " + _int_br(d["price"]))
+    desc = " · ".join(facts) or settings.site_description
+    return templates.TemplateResponse(
+        request,
+        "imovel.html",
+        {
+            "row": d,
+            "destination": settings.destination_label,
+            "ld_json": _listing_ld(d, base_url),
+            "meta": {
+                "title": (d["title"] or "Apartamento") + " — " + settings.site_title,
+                "description": desc,
+                "url": f"{base_url}/imovel/{listing_id}",
+                "image": d["photo"] or (base_url + "/static/og-image.png"),
+            },
+        },
+    )
+
+
 @app.get("/llms.txt", response_class=PlainTextResponse)
 def llms_txt() -> PlainTextResponse:
     """Guia em markdown para ferramentas de IA (convenção llmstxt.org)."""
@@ -559,6 +693,9 @@ use os recursos abaixo.
   dup_count, dup_sources.
 - [Detalhe de um imóvel em JSON]({base}/api/listings/ID): inclui o campo `photos`
   (URLs das fotos em alta) e `score_breakdown`.
+- [Página de um imóvel em HTML]({base}/imovel/ID): URL citável de um único
+  apartamento, com fotos, dados completos, descrição e links diretos para
+  todas as fontes onde ele aparece (use o `id` de /api/listings).
 - [Lista em HTML server-rendered]({base}/lista): mesma informação com fotos,
   descrições e preços já renderizados (boa para leitura direta).
 
@@ -596,6 +733,11 @@ def robots_txt() -> PlainTextResponse:
 def sitemap_xml() -> PlainTextResponse:
     base = get_settings().site_base_url.rstrip("/")
     urls = [f"{base}/", f"{base}/lista", f"{base}/llms.txt"]
+    with session_scope() as session:
+        ids = session.exec(
+            select(Listing.id).where(Listing.status == "active").order_by(Listing.score.desc())
+        ).all()
+    urls += [f"{base}/imovel/{i}" for i in ids]
     items = "".join(f"<url><loc>{u}</loc></url>" for u in urls)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{items}</urlset>'
     return PlainTextResponse(xml, media_type="application/xml")

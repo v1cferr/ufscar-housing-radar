@@ -358,7 +358,7 @@
       <ol>
         {% for r in featured %}
         <li>
-          <b>{{ r.title or 'Apartamento' }}</b>
+          <b><a href="/imovel/{{ r.id }}">{{ r.title or 'Apartamento' }}</a></b>
           {% if r.neighborhood %}— {{ r.neighborhood }}{% endif %}
           {% if r.city %}, {{ r.city }}{% endif %}<br>
           {% if r.price %}R$ {{ r.price | int_br }}{% else %}preço sob consulta{% endif %}
@@ -403,6 +403,7 @@
         <div class="m-move" id="m-move" hidden></div>
         <div class="bd" id="m-bd"></div>
         <a class="btn-primary" id="m-link" target="_blank" rel="noopener" hidden>Abrir anúncio no site ↗</a>
+        <a class="lnk" id="m-perma" style="display:inline-block;margin-top:8px;">Página deste imóvel (link fixo) →</a>
       </div>
     </div>
   </div>
@@ -680,6 +681,7 @@
         document.getElementById('m-bd').innerHTML = bdHTML(d);
         var link = document.getElementById('m-link');
         if (d.url){ link.href = d.url; link.hidden = false; } else link.hidden = true;
+        document.getElementById('m-perma').href = '/imovel/' + d.id;
 
         currentId = d.id;
         var fb = document.getElementById('m-fav');

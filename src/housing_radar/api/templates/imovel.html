@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ meta.title }}</title>
+  <meta name="description" content="{{ meta.description }}">
+  <link rel="canonical" href="{{ meta.url }}">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ meta.title }}">
+  <meta property="og:description" content="{{ meta.description }}">
+  <meta property="og:url" content="{{ meta.url }}">
+  <meta property="og:image" content="{{ meta.image }}">
+  <link rel="alternate" type="text/markdown" title="Guia para IAs (llms.txt)" href="/llms.txt">
+  {% if ld_json %}<script type="application/ld+json">{{ ld_json | safe }}</script>{% endif %}
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      line-height: 1.5; margin: 0 auto; padding: 1.2rem; max-width: 880px;
+      color: #1a1c20; background: #fafafa; }
+    @media (prefers-color-scheme: dark) { body { color: #e6e7ea; background: #14161a; } }
+    a { color: #2563eb; }
+    @media (prefers-color-scheme: dark) { a { color: #7aa2ff; } }
+    .back { font-size: .9rem; }
+    h1 { font-size: 1.5rem; margin: .6rem 0 .3rem; }
+    .badge { display: inline-block; padding: .1rem .5rem; border-radius: 6px;
+      background: #2563eb22; font-size: .85rem; vertical-align: middle; }
+    .sub { color: #6b7280; margin: 0 0 1rem; }
+    .gallery img.main { width: 100%; max-height: 460px; object-fit: cover; border-radius: 12px;
+      background: #d1d5db30; }
+    .thumbs { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0 0; }
+    .thumbs img { width: 110px; height: 80px; object-fit: cover; border-radius: 8px; background: #d1d5db30; }
+    .nophoto { padding: 2rem; text-align: center; color: #6b7280; border: 1px dashed #9ca3af66; border-radius: 12px; }
+    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: .6rem; margin: 1.2rem 0; }
+    .facts .f { padding: .6rem .8rem; border: 1px solid #d1d5db40; border-radius: 10px; }
+    .facts .f .k { font-size: .75rem; color: #6b7280; text-transform: uppercase; letter-spacing: .02em; }
+    .facts .f .v { font-size: 1.1rem; font-weight: 600; }
+    h2 { font-size: 1.1rem; margin: 1.6rem 0 .5rem; }
+    .desc { white-space: pre-line; }
+    ul.sources { list-style: none; padding: 0; }
+    ul.sources li { padding: .4rem 0; border-top: 1px solid #d1d5db40; }
+    .breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: .4rem; }
+    .breakdown .b { font-size: .9rem; color: #6b7280; }
+    footer { margin-top: 2rem; color: #6b7280; font-size: .82rem; }
+  </style>
+</head>
+<body>
+  {% if row is none %}
+    <p class="back"><a href="/lista">← voltar à lista</a></p>
+    <h1>Imóvel não encontrado</h1>
+    <p>Esse anúncio pode ter saído do ar. Veja a <a href="/lista">lista completa</a>.</p>
+  {% else %}
+    <p class="back"><a href="/">← versão interativa</a> · <a href="/lista">lista</a></p>
+    <h1>
+      {{ row.title or 'Apartamento' }}
+      {% if row.score is not none %}<span class="badge">score {{ row.score | int_br }}</span>{% endif %}
+    </h1>
+    <p class="sub">
+      {% if row.neighborhood %}{{ row.neighborhood }}{% endif %}{% if row.city %}, {{ row.city }}{% endif %}
+      {% if row.dist_ufscar_km %} · {{ row.dist_ufscar_km | dec_br }} km da {{ destination }}{% endif %}
+    </p>
+
+    <div class="gallery">
+      {% if row.photo %}
+        <img class="main" src="{{ row.photo }}" alt="Foto de {{ row.title or 'apartamento' }}">
+        {% if row.photos|length > 1 %}
+        <div class="thumbs">
+          {% for p in row.photos[1:12] %}<img src="{{ p }}" alt="Foto do imóvel" loading="lazy">{% endfor %}
+        </div>
+        {% endif %}
+      {% else %}
+        <div class="nophoto">Sem fotos disponíveis nesta fonte.</div>
+      {% endif %}
+    </div>
+
+    <div class="facts">
+      <div class="f"><div class="k">Preço</div><div class="v">{% if row.price %}R$ {{ row.price | int_br }}{% else %}sob consulta{% endif %}</div></div>
+      {% if row.rent_price %}<div class="f"><div class="k">Aluguel</div><div class="v">R$ {{ row.rent_price | int_br }}/mês</div></div>{% endif %}
+      {% if row.condo_fee %}<div class="f"><div class="k">Condomínio</div><div class="v">R$ {{ row.condo_fee | int_br }}</div></div>{% endif %}
+      {% if row.area_m2 %}<div class="f"><div class="k">Área</div><div class="v">{{ row.area_m2 | int_br }} m²</div></div>{% endif %}
+      {% if row.bedrooms is not none %}<div class="f"><div class="k">Quartos</div><div class="v">{{ row.bedrooms }}</div></div>{% endif %}
+      {% if row.bathrooms is not none %}<div class="f"><div class="k">Banheiros</div><div class="v">{{ row.bathrooms }}</div></div>{% endif %}
+      {% if row.parking_spots is not none %}<div class="f"><div class="k">Vagas</div><div class="v">{{ row.parking_spots }}</div></div>{% endif %}
+      {% if row.time_car_min %}<div class="f"><div class="k">Carro à UFSCar</div><div class="v">{{ row.time_car_min | int_br }} min</div></div>{% endif %}
+      {% if row.time_bike_min %}<div class="f"><div class="k">Bici à UFSCar</div><div class="v">{{ row.time_bike_min | int_br }} min</div></div>{% endif %}
+      {% if row.time_walk_min %}<div class="f"><div class="k">A pé à UFSCar</div><div class="v">{{ row.time_walk_min | int_br }} min</div></div>{% endif %}
+    </div>
+
+    {% if row.description %}
+    <h2>Descrição</h2>
+    <p class="desc">{{ row.description }}</p>
+    {% endif %}
+
+    <h2>Onde ver o anúncio</h2>
+    <ul class="sources">
+      {% for s in row.sources %}
+      <li>
+        {{ s.source }}{% if s.url %} — <a href="{{ s.url }}" rel="noopener">abrir anúncio original ↗</a>{% else %} (sem link direto){% endif %}
+      </li>
+      {% else %}
+      <li>{{ row.source }}{% if row.url %} — <a href="{{ row.url }}" rel="noopener">abrir anúncio ↗</a>{% endif %}</li>
+      {% endfor %}
+    </ul>
+
+    {% if row.score_breakdown %}
+    <h2>Composição do score</h2>
+    <div class="breakdown">
+      {% for k, v in row.score_breakdown.items() %}
+      <div class="b">{{ k }}: {{ v | dec_br(2) if v is number else v }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <footer>
+      Dado best-effort para uso pessoal — confira sempre no anúncio original.
+      Tempos até a {{ destination }}{% if row.travel_provider == 'ors' %} (reais, ORS){% else %} (estimados){% endif %}.
+    </footer>
+  {% endif %}
+</body>
+</html>

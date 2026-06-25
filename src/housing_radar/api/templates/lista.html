@@ -78,7 +78,7 @@
     {% if r.photo %}<img src="{{ r.photo }}" alt="Foto de {{ r.title or 'apartamento' }}" loading="lazy">{% endif %}
     <div>
       <div class="facts">
-        <b>{{ r.title or 'Apartamento' }}</b>
+        <b><a href="/imovel/{{ r.id }}">{{ r.title or 'Apartamento' }}</a></b>
         {% if r.score is not none %}<span class="badge">score {{ r.score | int_br }}</span>{% endif %}
       </div>
       <div class="meta">
