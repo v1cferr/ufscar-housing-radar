@@ -288,6 +288,8 @@ def dashboard(request: Request) -> HTMLResponse:
         "index.html",
         {
             "destination": settings.destination_label,
+            "ufscar_lat": settings.ufscar_lat,
+            "ufscar_lon": settings.ufscar_lon,
             "neighborhoods": _all_neighborhoods(),
             "meta": {
                 "title": settings.site_title,

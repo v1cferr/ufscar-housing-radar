@@ -41,6 +41,7 @@
   </script>
 
   <link rel="stylesheet" href="/static/vendor/tabulator.min.css">
+  <link rel="stylesheet" href="/static/vendor/leaflet.css">
   <style>
     [data-theme="dark"] {
       --bg:#0f1115; --surface:#181b22; --surface-2:#1f232c; --line:#272b34;
@@ -153,6 +154,20 @@
     .bd .bdval { width:28px; text-align:right; color:var(--txt); font-variant-numeric:tabular-nums; }
     .btn-primary { display:inline-block; background:var(--accent); color:#fff; text-decoration:none;
             padding:11px 18px; border-radius:10px; font-weight:700; }
+
+    /* ---- Toggle de visão + mapa ------------------------------------------- */
+    .viewtoggle { display:inline-flex; border:1px solid var(--line); border-radius:10px;
+            overflow:hidden; margin:0 0 12px; }
+    .viewtoggle .vt { background:var(--surface); color:var(--mut); border:0; padding:8px 18px;
+            font-weight:600; cursor:pointer; font-size:13px; }
+    .viewtoggle .vt.active { background:var(--accent); color:#fff; }
+    #map { height:72vh; min-height:420px; border:1px solid var(--line); border-radius:14px;
+            overflow:hidden; box-shadow:0 1px 3px var(--shadow); z-index:1; }
+    #map[hidden] { display:none; }
+    .map-pop { font:13px/1.4 system-ui, sans-serif; }
+    .map-pop b { font-size:14px; }
+    .map-pop .mp-btn { display:inline-block; margin-top:8px; background:var(--accent); color:#fff;
+            padding:6px 12px; border-radius:8px; font-weight:700; cursor:pointer; border:0; font-size:13px; }
     @media (max-width:560px){
       .modal-overlay { padding:0; }
       .modal { max-height:100vh; height:100%; border-radius:0; }
@@ -238,7 +253,13 @@
       <span><span class="real">•</span> tempo real (ORS); sem marca = estimativa</span>
     </div>
 
+    <div class="viewtoggle">
+      <button id="view-table" class="vt active" type="button">Tabela</button>
+      <button id="view-map" class="vt" type="button">Mapa</button>
+    </div>
+
     <div id="grid"></div>
+    <div id="map" hidden></div>
   </div>
 
   <div id="modal" class="modal-overlay" hidden>
@@ -266,6 +287,7 @@
   </div>
 
   <script src="/static/vendor/tabulator.min.js"></script>
+  <script src="/static/vendor/leaflet.js"></script>
   <script>
     // ---- helpers ----
     var DASH = '<span class="dash">—</span>';
@@ -457,6 +479,53 @@
       else if (e.key === 'ArrowLeft') showPhoto(pIdx - 1);
       else if (e.key === 'ArrowRight') showPhoto(pIdx + 1);
     });
+
+    // ---- mapa (Leaflet) ----
+    window.openModal = openModal;  // usado pelo botão do popup do mapa
+    var UFSCAR = [{{ ufscar_lat }}, {{ ufscar_lon }}];
+    var lmap = null, markersLayer = null;
+    function scoreColor(s){ return s == null ? '#9aa3b2' : (s >= 70 ? '#2ec16a' : (s < 45 ? '#e05a5a' : '#4f8cff')); }
+    function initMap(){
+      if (lmap) return;
+      lmap = L.map('map', {preferCanvas: true, scrollWheelZoom: true}).setView(UFSCAR, 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19, attribution: '&copy; OpenStreetMap'
+      }).addTo(lmap);
+      L.marker(UFSCAR, {icon: L.divIcon({className: '', iconSize: [64, 22], iconAnchor: [32, 11],
+        html: '<div style="background:#7c3aed;color:#fff;padding:3px 9px;border-radius:999px;font:700 12px system-ui;white-space:nowrap;box-shadow:0 1px 5px rgba(0,0,0,.5)">UFSCar</div>'})}).addTo(lmap);
+      markersLayer = L.layerGroup().addTo(lmap);
+    }
+    function plotMap(){
+      initMap();
+      markersLayer.clearLayers();
+      var rows = table.getData('active');  // respeita filtros/ordenação atuais
+      var bounds = [UFSCAR];
+      rows.forEach(function(r){
+        if (r.lat == null || r.lon == null) return;
+        // São Carlos tem ~15km de ponta a ponta; >30km é geocode errado (outra cidade).
+        if (r.dist_ufscar_km != null && r.dist_ufscar_km > 30) return;
+        var price = r.price != null ? 'R$ ' + Math.round(r.price).toLocaleString('pt-BR') : 's/ preço';
+        var car = r.time_car_min != null ? '<br>' + Math.round(r.time_car_min) + ' min de carro até a UFSCar' : '';
+        var m = L.circleMarker([r.lat, r.lon], {radius: 7, color: '#0008', weight: 1,
+          fillColor: scoreColor(r.score), fillOpacity: 0.9});
+        m.bindPopup('<div class="map-pop"><b>' + esc(r.title || 'Sem título') + '</b><br>' +
+          esc(r.neighborhood || '') + ' &middot; ' + price + car +
+          '<br><button class="mp-btn" onclick="openModal(' + r.id + ')">Ver detalhes</button></div>');
+        m.addTo(markersLayer);
+        bounds.push([r.lat, r.lon]);
+      });
+      if (bounds.length > 1) lmap.fitBounds(bounds, {padding: [40, 40], maxZoom: 15});
+      setTimeout(function(){ lmap.invalidateSize(); }, 60);  // recalcula tamanho ao exibir
+    }
+    function showView(isTable){
+      document.getElementById('grid').hidden = !isTable;
+      document.getElementById('map').hidden = isTable;
+      document.getElementById('view-table').classList.toggle('active', isTable);
+      document.getElementById('view-map').classList.toggle('active', !isTable);
+      if (!isTable) plotMap();
+    }
+    document.getElementById('view-table').addEventListener('click', function(){ showView(true); });
+    document.getElementById('view-map').addEventListener('click', function(){ showView(false); });
 
     // ---- tema ----
     (function(){

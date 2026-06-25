@@ -13,7 +13,8 @@ lista qualificada e comparável para discutir com mais maturidade na hora da dec
 ## Stack
 
 `uv` + Python 3.13 · **FastAPI** (API JSON + shell HTML) · **Tabulator** (grid
-interativo no cliente — ordena/filtra/pagina na hora; vendorizado, sem build) ·
+interativo no cliente — ordena/filtra/pagina na hora) + **Leaflet** (mapa) +
+modal de detalhe com galeria de fotos; tudo vendorizado, sem build ·
 SQLite (via SQLModel) · `httpx` + BeautifulSoup (coleta) · `geopy`/Nominatim (geocoding) ·
 Docker + docker-compose, atrás de **Caddy** (TLS + domínio).
 
@@ -120,6 +121,8 @@ depois `caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload ca
 - [x] **VivaReal + ZAP** (Grupo ZAP) via JSON-LD público (`collect vivareal|zap`)
 - [x] **Imovelweb** via Playwright (browser real passa o Cloudflare) — extra `browser`, opcional
 - [x] **+3 imobiliárias MSYS** (e2, mariaaires, center) — 9 fontes, ~3.100 anúncios
+- [x] **Modal de detalhe** com galeria de fotos (em alta resolução) e composição do score
+- [x] **Mapa interativo** (Leaflet + OpenStreetMap) dos imóveis, coloridos por score, com a UFSCar marcada
 - [ ] **Cardinali:** abrir páginas de detalhe p/ preencher área/bairro faltantes (~30% dos cards)
 - [ ] **Dedup entre fontes**: o mesmo imóvel aparece em VivaReal/ZAP/imovelweb (Navent) e nas imobiliárias com ids distintos — unir por endereço/atributos
 - [ ] QuintoAndar — captcha/anti-bot bloqueia até via Playwright (precisaria stealth/proxy)
