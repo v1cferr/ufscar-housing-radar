@@ -30,6 +30,10 @@
   <meta name="twitter:description" content="{{ meta.description }}">
   <meta name="twitter:image" content="{{ meta.image }}">
 
+  <link rel="alternate" type="text/markdown" title="Guia para IAs (llms.txt)" href="/llms.txt">
+  <link rel="alternate" type="text/html" title="Lista sem JavaScript" href="/lista">
+  {% if ld_json %}<script type="application/ld+json">{{ ld_json | safe }}</script>{% endif %}
+
   <script>
     (function () {
       try {
@@ -258,6 +262,9 @@
     #loading .ld-txt { color:var(--mut); font-size:.9rem; }
     @keyframes spin { to { transform:rotate(360deg); } }
     @media (prefers-reduced-motion:reduce) { .spinner { animation-duration:1.6s; } }
+
+    footer.opendata { margin-top:1.4rem; color:var(--mut); font-size:.82rem; text-align:center; }
+    footer.opendata a { color:var(--mut); }
   </style>
 </head>
 <body>
@@ -342,6 +349,36 @@
         <div class="ld-txt">Carregando apartamentos…</div>
       </div>
     </div>
+
+    <noscript>
+      <h2>Apartamentos (top {{ featured|length }} por score)</h2>
+      <p>Esta página usa JavaScript para a tabela interativa. Sem JS, segue a lista
+        resumida. Dados completos: <a href="/lista">/lista</a> (HTML),
+        <a href="/api/listings">/api/listings</a> (JSON), <a href="/llms.txt">/llms.txt</a>.</p>
+      <ol>
+        {% for r in featured %}
+        <li>
+          <b>{{ r.title or 'Apartamento' }}</b>
+          {% if r.neighborhood %}— {{ r.neighborhood }}{% endif %}
+          {% if r.city %}, {{ r.city }}{% endif %}<br>
+          {% if r.price %}R$ {{ r.price | int_br }}{% else %}preço sob consulta{% endif %}
+          {% if r.area_m2 %}· {{ r.area_m2 | int_br }} m²{% endif %}
+          {% if r.bedrooms is not none %}· {{ r.bedrooms }} quartos{% endif %}
+          {% if r.parking_spots is not none %}· {{ r.parking_spots }} vagas{% endif %}
+          {% if r.dist_ufscar_km %}· {{ r.dist_ufscar_km | dec_br }} km da UFSCar{% endif %}
+          {% if r.score is not none %}· score {{ r.score | int_br }}{% endif %}
+          {% if r.url %}· <a href="{{ r.url }}">ver anúncio</a>{% endif %}
+        </li>
+        {% endfor %}
+      </ol>
+    </noscript>
+
+    <footer class="opendata">
+      Dados abertos / para IAs:
+      <a href="/lista">lista sem JavaScript</a> ·
+      <a href="/api/listings">API JSON</a> ·
+      <a href="/llms.txt">llms.txt</a>
+    </footer>
   </div>
 
   <div id="modal" class="modal-overlay" hidden>

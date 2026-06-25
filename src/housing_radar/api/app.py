@@ -9,7 +9,12 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Body, FastAPI, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
@@ -221,6 +226,82 @@ def _all_neighborhoods() -> list[str]:
     return sorted({r for r in rows if r})
 
 
+# --- Renderização legível (server-side, p/ humanos sem JS e p/ IAs) ----------
+def _render_row(item: Listing, with_photo: bool = True) -> dict:
+    """Campos achatados de um anúncio + foto principal, para templates/JSON-LD."""
+    photo = None
+    if with_photo:
+        photos = _photos(item)
+        photo = photos[0] if photos else None
+    desc = (item.description or "").strip()
+    return {
+        "id": item.id,
+        "title": item.title,
+        "price": item.price,
+        "rent_price": item.rent_price,
+        "condo_fee": item.condo_fee,
+        "area_m2": item.area_m2,
+        "bedrooms": item.bedrooms,
+        "bathrooms": item.bathrooms,
+        "parking_spots": item.parking_spots,
+        "neighborhood": item.neighborhood,
+        "city": item.city,
+        "dist_ufscar_km": item.dist_ufscar_km,
+        "time_walk_min": item.time_walk_min,
+        "time_car_min": item.time_car_min,
+        "score": item.score,
+        "url": item.url,
+        "source": item.source,
+        "photo": photo,
+        "description": desc[:400] + ("…" if len(desc) > 400 else ""),
+    }
+
+
+def _featured(limit: int, **filters) -> list[dict]:
+    """Top-N por score (já deduplicado entre fontes), como dicts prontos p/ render."""
+    listings = _query_listings(sort="score", **filters)
+    reps, _ = _collapse_duplicates(listings, _SORTS["score"])
+    return [_render_row(i) for i in reps[:limit]]
+
+
+def _listings_ld(rows: list[dict], base_url: str) -> str:
+    """JSON-LD schema.org (ItemList de Apartment/Offer) para leitura por máquinas."""
+    elements = []
+    for pos, r in enumerate(rows, 1):
+        item: dict = {"@type": "Apartment", "name": r["title"] or "Apartamento"}
+        item["url"] = r["url"] or f"{base_url}/lista"
+        if r["photo"]:
+            item["image"] = r["photo"]
+        if r["area_m2"]:
+            item["floorSize"] = {"@type": "QuantitativeValue", "value": r["area_m2"], "unitCode": "MTK"}
+        if r["bedrooms"] is not None:
+            item["numberOfRoomsTotal"] = r["bedrooms"]
+        if r["neighborhood"]:
+            item["address"] = {
+                "@type": "PostalAddress",
+                "streetAddress": r["neighborhood"],
+                "addressLocality": r["city"] or "São Carlos",
+                "addressRegion": "SP",
+                "addressCountry": "BR",
+            }
+        if r["price"]:
+            item["offers"] = {
+                "@type": "Offer",
+                "price": int(round(r["price"])),
+                "priceCurrency": "BRL",
+                "availability": "https://schema.org/InStock",
+            }
+        elements.append({"@type": "ListItem", "position": pos, "item": item})
+    doc = {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        "name": "Apartamentos à venda perto da UFSCar São Carlos",
+        "numberOfItems": len(rows),
+        "itemListElement": elements,
+    }
+    return json.dumps(doc, ensure_ascii=False)
+
+
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
     return {"status": "ok"}
@@ -381,9 +462,14 @@ def api_set_favorite(listing_id: int, value: bool = Body(..., embed=True)) -> JS
 
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request) -> HTMLResponse:
-    """Renderiza o shell; o grid (Tabulator) carrega os dados via /api/listings."""
+    """Renderiza o shell; o grid (Tabulator) carrega os dados via /api/listings.
+
+    Para leitores sem JS (IAs que abrem o link, crawlers), embute os top imóveis
+    em <noscript> + JSON-LD schema.org — assim o conteúdo é legível sem executar JS.
+    """
     settings = get_settings()
     base_url = settings.site_base_url.rstrip("/")
+    featured = _featured(limit=30)
     return templates.TemplateResponse(
         request,
         "index.html",
@@ -392,6 +478,8 @@ def dashboard(request: Request) -> HTMLResponse:
             "ufscar_lat": settings.ufscar_lat,
             "ufscar_lon": settings.ufscar_lon,
             "neighborhoods": _all_neighborhoods(),
+            "featured": featured,
+            "ld_json": _listings_ld(featured, base_url),
             "meta": {
                 "title": settings.site_title,
                 "description": settings.site_description,
@@ -400,3 +488,114 @@ def dashboard(request: Request) -> HTMLResponse:
             },
         },
     )
+
+
+@app.get("/lista", response_class=HTMLResponse)
+def lista(
+    request: Request,
+    q: str | None = Query(default=None),
+    max_price: str | None = Query(default=None),
+    min_bedrooms: str | None = Query(default=None),
+    min_area: str | None = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=1000),
+) -> HTMLResponse:
+    """Lista server-rendered (sem JS) — pensada para IAs e leitura direta.
+
+    Filtros por querystring: ?q=&max_price=&min_bedrooms=&min_area=&limit=.
+    """
+    settings = get_settings()
+    base_url = settings.site_base_url.rstrip("/")
+    rows = _featured(
+        limit=limit,
+        q=q,
+        max_price=_to_float(max_price),
+        min_bedrooms=_to_int(min_bedrooms),
+        min_area=_to_float(min_area),
+    )
+    return templates.TemplateResponse(
+        request,
+        "lista.html",
+        {
+            "rows": rows,
+            "total": len(rows),
+            "destination": settings.destination_label,
+            "ld_json": _listings_ld(rows, base_url),
+            "filters": {
+                "q": q or "",
+                "max_price": max_price or "",
+                "min_bedrooms": min_bedrooms or "",
+                "min_area": min_area or "",
+                "limit": limit,
+            },
+            "meta": {
+                "title": "Lista de apartamentos — " + settings.site_title,
+                "description": settings.site_description,
+                "url": base_url + "/lista",
+                "image": base_url + "/static/og-image.png",
+            },
+        },
+    )
+
+
+@app.get("/llms.txt", response_class=PlainTextResponse)
+def llms_txt() -> PlainTextResponse:
+    """Guia em markdown para ferramentas de IA (convenção llmstxt.org)."""
+    base = get_settings().site_base_url.rstrip("/")
+    body = f"""# UFSCar Housing Radar
+
+> Apartamentos à venda perto da UFSCar (São Carlos/SP), coletados de várias
+> imobiliárias e portais, geolocalizados e ranqueados por um score 0-100
+> (proximidade, preço, área, condomínio, quartos, vagas, custo-benefício).
+
+O site principal ({base}/) é um app JavaScript; para ler os dados sem executar JS,
+use os recursos abaixo.
+
+## Dados legíveis por máquina
+
+- [Lista completa em JSON]({base}/api/listings): array de imóveis. Cada item tem
+  id, title, price (R$), rent_price, condo_fee, area_m2, bedrooms, bathrooms,
+  parking_spots, neighborhood, city, lat, lon, dist_ufscar_km, time_walk_min,
+  time_bike_min, time_car_min, score (0-100), url (anúncio na fonte), source,
+  dup_count, dup_sources.
+- [Detalhe de um imóvel em JSON]({base}/api/listings/ID): inclui o campo `photos`
+  (URLs das fotos em alta) e `score_breakdown`.
+- [Lista em HTML server-rendered]({base}/lista): mesma informação com fotos,
+  descrições e preços já renderizados (boa para leitura direta).
+
+## Filtros (querystring, valem para /api/listings e /lista)
+
+- `q`: texto livre (título, bairro, fonte) ou ID/URL de um anúncio colado.
+- `max_price`: preço máximo em R$.
+- `min_bedrooms`: número mínimo de quartos.
+- `min_area`: área mínima em m².
+- `max_car_min`: tempo máximo de carro até a UFSCar (min) — só em /api/listings.
+- `sort`: score | price | car | area (padrão: score) — só em /api/listings.
+- `limit`: máximo de itens.
+
+Exemplos:
+- {base}/lista?max_price=300000&min_bedrooms=2
+- {base}/api/listings?q=Santa+Felicia&sort=price&limit=20
+
+## Observações
+
+- Preços em reais (R$). Tempos até a UFSCar em minutos. Distância em km.
+- "score" é uma nota 0-100 calculada pelo projeto, não um valor de mercado.
+- Os dados são best-effort, para uso pessoal; confira sempre no anúncio original (url).
+"""
+    return PlainTextResponse(body, media_type="text/markdown; charset=utf-8")
+
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+def robots_txt() -> PlainTextResponse:
+    base = get_settings().site_base_url.rstrip("/")
+    body = f"User-agent: *\nAllow: /\n\n# Guia para IAs: {base}/llms.txt\nSitemap: {base}/sitemap.xml\n"
+    return PlainTextResponse(body)
+
+
+@app.get("/sitemap.xml", response_class=PlainTextResponse)
+def sitemap_xml() -> PlainTextResponse:
+    base = get_settings().site_base_url.rstrip("/")
+    urls = [f"{base}/", f"{base}/lista", f"{base}/llms.txt"]
+    items = "".join(f"<url><loc>{u}</loc></url>" for u in urls)
+    xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{items}</urlset>'
+    return PlainTextResponse(xml, media_type="application/xml")

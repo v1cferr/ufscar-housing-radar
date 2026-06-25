@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ meta.title }}</title>
+  <meta name="description" content="{{ meta.description }}">
+  <link rel="canonical" href="{{ meta.url }}">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ meta.title }}">
+  <meta property="og:description" content="{{ meta.description }}">
+  <meta property="og:url" content="{{ meta.url }}">
+  <meta property="og:image" content="{{ meta.image }}">
+  <link rel="alternate" type="text/markdown" title="Guia para IAs (llms.txt)" href="/llms.txt">
+  {% if ld_json %}<script type="application/ld+json">{{ ld_json | safe }}</script>{% endif %}
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      line-height: 1.5; margin: 0; padding: 1.2rem; max-width: 1000px;
+      margin-inline: auto; color: #1a1c20; background: #fafafa; }
+    @media (prefers-color-scheme: dark) { body { color: #e6e7ea; background: #14161a; } }
+    h1 { font-size: 1.5rem; margin: 0 0 .2rem; }
+    .lead { color: #6b7280; margin: 0 0 1rem; }
+    .links a { margin-right: .6rem; }
+    form.filters { display: flex; flex-wrap: wrap; gap: .6rem; align-items: end;
+      margin: 1rem 0; padding: .8rem; border: 1px solid #d1d5db40; border-radius: 10px; }
+    form.filters label { display: flex; flex-direction: column; font-size: .8rem; gap: .2rem; }
+    form.filters input { padding: .4rem .5rem; min-width: 9rem; }
+    form.filters button { padding: .45rem .9rem; }
+    .count { color: #6b7280; margin: .4rem 0 1rem; }
+    article.card { display: flex; gap: 1rem; padding: 1rem 0; border-top: 1px solid #d1d5db40; }
+    article.card img { width: 200px; height: 140px; object-fit: cover; border-radius: 8px;
+      background: #d1d5db30; flex: none; }
+    .facts { margin: .2rem 0; }
+    .facts b { font-size: 1.05rem; }
+    .meta { color: #6b7280; font-size: .9rem; }
+    .price { font-weight: 600; }
+    .desc { margin: .4rem 0 0; font-size: .92rem; }
+    .badge { display: inline-block; padding: .05rem .45rem; border-radius: 6px;
+      background: #2563eb22; font-size: .8rem; }
+    @media (max-width: 560px) { article.card { flex-direction: column; } article.card img { width: 100%; } }
+  </style>
+</head>
+<body>
+  <h1>Apartamentos perto da {{ destination }}</h1>
+  <p class="lead">Lista server-rendered (sem JavaScript), pensada para leitura direta e por ferramentas de IA.</p>
+  <p class="links">
+    Versão interativa: <a href="/">/</a> ·
+    JSON: <a href="/api/listings">/api/listings</a> ·
+    Guia p/ IAs: <a href="/llms.txt">/llms.txt</a>
+  </p>
+
+  <form class="filters" method="get" action="/lista">
+    <label>Texto (bairro, título, fonte)
+      <input type="search" name="q" value="{{ filters.q }}" placeholder="ex.: Santa Felícia">
+    </label>
+    <label>Preço máx. (R$)
+      <input type="number" name="max_price" value="{{ filters.max_price }}" step="10000">
+    </label>
+    <label>Quartos mín.
+      <input type="number" name="min_bedrooms" value="{{ filters.min_bedrooms }}" min="0">
+    </label>
+    <label>Área mín. (m²)
+      <input type="number" name="min_area" value="{{ filters.min_area }}" step="5">
+    </label>
+    <label>Máx. itens
+      <input type="number" name="limit" value="{{ filters.limit }}" min="1" max="1000">
+    </label>
+    <button type="submit">Filtrar</button>
+  </form>
+
+  <p class="count">{{ total }} apartamento(s), ordenados por score (0–100).</p>
+
+  {% for r in rows %}
+  <article class="card">
+    {% if r.photo %}<img src="{{ r.photo }}" alt="Foto de {{ r.title or 'apartamento' }}" loading="lazy">{% endif %}
+    <div>
+      <div class="facts">
+        <b>{{ r.title or 'Apartamento' }}</b>
+        {% if r.score is not none %}<span class="badge">score {{ r.score | int_br }}</span>{% endif %}
+      </div>
+      <div class="meta">
+        {% if r.neighborhood %}{{ r.neighborhood }}{% endif %}{% if r.city %}, {{ r.city }}{% endif %}
+        {% if r.dist_ufscar_km %} · {{ r.dist_ufscar_km | dec_br }} km da {{ destination }}{% endif %}
+        {% if r.time_car_min %} · {{ r.time_car_min | int_br }} min de carro{% endif %}
+      </div>
+      <div class="meta">
+        <span class="price">{% if r.price %}R$ {{ r.price | int_br }}{% else %}preço sob consulta{% endif %}</span>
+        {% if r.rent_price %} · aluguel R$ {{ r.rent_price | int_br }}/mês{% endif %}
+        {% if r.condo_fee %} · condomínio R$ {{ r.condo_fee | int_br }}{% endif %}
+        {% if r.area_m2 %} · {{ r.area_m2 | int_br }} m²{% endif %}
+        {% if r.bedrooms is not none %} · {{ r.bedrooms }} quarto(s){% endif %}
+        {% if r.bathrooms is not none %} · {{ r.bathrooms }} banheiro(s){% endif %}
+        {% if r.parking_spots is not none %} · {{ r.parking_spots }} vaga(s){% endif %}
+      </div>
+      {% if r.description %}<p class="desc">{{ r.description }}</p>{% endif %}
+      <div class="meta">
+        Fonte: {{ r.source }}{% if r.url %} · <a href="{{ r.url }}" rel="noopener">ver anúncio original</a>{% endif %}
+      </div>
+    </div>
+  </article>
+  {% else %}
+  <p>Nenhum apartamento encontrado com esses filtros.</p>
+  {% endfor %}
+</body>
+</html>
