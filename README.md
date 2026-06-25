@@ -123,6 +123,9 @@ depois `caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload ca
 - [x] **+3 imobiliárias MSYS** (e2, mariaaires, center) — 9 fontes, ~3.100 anúncios
 - [x] **Modal de detalhe** com galeria de fotos (em alta resolução) e composição do score
 - [x] **Mapa interativo** (Leaflet + OpenStreetMap) dos imóveis, coloridos por score, com a UFSCar marcada
+- [x] **Favoritos compartilhados** (estrela + filtro), estado no servidor (eu + mãe)
+- [x] **Simulação de financiamento** (Tabela Price) com filtro por parcela máxima
+- [x] **Estimativa de mudança** (distância origem→imóvel + ordem de grandeza; links p/ orçamento real)
 - [ ] **Cardinali:** abrir páginas de detalhe p/ preencher área/bairro faltantes (~30% dos cards)
 - [ ] **Dedup entre fontes**: o mesmo imóvel aparece em VivaReal/ZAP/imovelweb (Navent) e nas imobiliárias com ids distintos — unir por endereço/atributos
 - [ ] QuintoAndar — captcha/anti-bot bloqueia até via Playwright (precisaria stealth/proxy)

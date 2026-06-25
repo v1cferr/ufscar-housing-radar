@@ -17,7 +17,7 @@ from sqlmodel import select
 
 from housing_radar.config import get_settings
 from housing_radar.db import init_db, session_scope
-from housing_radar.models import Listing
+from housing_radar.models import Listing, Setting
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -276,6 +276,58 @@ def api_listing_detail(listing_id: int) -> JSONResponse:
     data.pop("raw", None)
     data["photos"] = photos
     return JSONResponse(data)
+
+
+# Config compartilhada (financiamento + mudança). Defaults preenchem o que faltar.
+_DEFAULT_SETTINGS = {
+    "parcela_max": "",      # filtro: parcela mensal máxima (R$)
+    "entrada_pct": "20",    # entrada (% do valor) p/ estimar o financiamento
+    "juros_aa": "11",       # juros (% ao ano)
+    "prazo_meses": "360",   # prazo do financiamento (meses)
+    "origin": "",           # endereço de origem p/ estimar a mudança
+    "origin_lat": "",       # lat/lon geocodados da origem (preenchidos no save)
+    "origin_lon": "",
+}
+
+
+@app.get("/api/settings")
+def api_get_settings() -> JSONResponse:
+    """Config compartilhada (com defaults preenchidos)."""
+    with session_scope() as session:
+        rows = session.exec(select(Setting)).all()
+    out = dict(_DEFAULT_SETTINGS)
+    out.update({r.key: r.value for r in rows})
+    return JSONResponse(out)
+
+
+@app.post("/api/settings")
+def api_set_settings(data: dict = Body(...)) -> JSONResponse:
+    """Salva (upsert) as chaves enviadas — compartilhado, sem login (uso pessoal).
+
+    Se 'origin' mudar, geocoda e grava origin_lat/origin_lon (p/ estimar a mudança).
+    """
+    # Geocoda a origem fora da sessão (Nominatim ~1s) e injeta lat/lon.
+    if "origin" in data:
+        origin = (data.get("origin") or "").strip()
+        if origin:
+            from housing_radar.pipeline.geocode import Geocoder
+
+            coords = Geocoder().geocode(origin)
+            data["origin_lat"] = str(coords[0]) if coords else ""
+            data["origin_lon"] = str(coords[1]) if coords else ""
+        else:
+            data["origin_lat"] = ""
+            data["origin_lon"] = ""
+
+    with session_scope() as session:
+        for key, value in data.items():
+            row = session.get(Setting, key)
+            if row is None:
+                session.add(Setting(key=key, value=str(value)))
+            else:
+                row.value = str(value)
+                session.add(row)
+    return JSONResponse({"ok": True})
 
 
 @app.post("/api/listings/{listing_id}/favorite")

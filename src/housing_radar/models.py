@@ -90,3 +90,13 @@ class Listing(SQLModel, table=True):
     favorite: bool = Field(default=False, index=True)  # marcado por mim/minha mãe
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
+
+
+class Setting(SQLModel, table=True):
+    """Config compartilhada (key/value) — ex.: parcela máxima, origem da mudança.
+
+    Sem login (uso pessoal eu + mãe); o estado persiste entre sessões/dispositivos.
+    """
+
+    key: str = Field(primary_key=True)
+    value: str = ""

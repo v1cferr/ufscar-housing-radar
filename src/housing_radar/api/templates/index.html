@@ -145,6 +145,8 @@
     .fact { background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:8px 11px; }
     .fact .k { color:var(--mut); font-size:11px; text-transform:uppercase; letter-spacing:.03em; }
     .fact .v { font-weight:700; font-size:15px; margin-top:2px; font-variant-numeric:tabular-nums; }
+    .m-move { background:var(--surface-2); border:1px solid var(--line); border-radius:10px;
+            padding:10px 12px; font-size:13px; margin-bottom:16px; }
     .bd { margin-bottom:18px; }
     .bd .bdtitle { color:var(--mut); font-size:11px; text-transform:uppercase; letter-spacing:.03em; margin-bottom:8px; }
     .bd .bdrow { display:flex; align-items:center; gap:10px; margin:6px 0; font-size:12.5px; }
@@ -166,6 +168,24 @@
     .favfilter { background:var(--surface); color:var(--txt); border:1px solid var(--line);
             border-radius:10px; padding:8px 16px; font-size:13px; font-weight:600; cursor:pointer; }
     .favfilter.on { background:#f5b301; border-color:#f5b301; color:#3a2e00; }
+
+    /* ---- Painéis (financiamento / mudança) -------------------------------- */
+    .panels { display:flex; flex-wrap:wrap; gap:10px; margin:0 0 12px; }
+    .panel { flex:1 1 320px; background:var(--surface); border:1px solid var(--line); border-radius:12px; }
+    .panel > summary { cursor:pointer; padding:11px 14px; font-weight:600; font-size:14px; list-style:none; }
+    .panel > summary::-webkit-details-marker { display:none; }
+    .panel > summary::before { content:'▸ '; color:var(--mut); }
+    .panel[open] > summary::before { content:'▾ '; }
+    .panel-body { padding:0 14px 14px; display:grid; gap:10px;
+            grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); align-items:end; }
+    .panel-body .field { display:flex; flex-direction:column; gap:5px; min-width:0; }
+    .panel-body label { font-size:12px; color:var(--mut); font-weight:600; }
+    .panel-body input { width:100%; background:var(--surface-2); border:1px solid var(--line);
+            color:var(--txt); border-radius:10px; padding:9px 10px; font-size:14px; }
+    .panel-body input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+    .panel-body .chk { grid-column:1 / -1; display:flex; align-items:center; gap:8px;
+            font-size:13px; color:var(--txt); font-weight:600; }
+    .panel-note { grid-column:1 / -1; margin:2px 0 0; font-size:12px; color:var(--mut); line-height:1.5; }
     .viewtoggle { display:inline-flex; border:1px solid var(--line); border-radius:10px;
             overflow:hidden; }
     .viewtoggle .vt { background:var(--surface); color:var(--mut); border:0; padding:8px 18px;
@@ -254,6 +274,29 @@
 
     <datalist id="bairros">{% for n in neighborhoods %}<option value="{{ n }}"></option>{% endfor %}</datalist>
 
+    <div class="panels">
+      <details class="panel">
+        <summary>Simular financiamento</summary>
+        <div class="panel-body">
+          <div class="field"><label for="fin-parcela">Parcela máx. (R$/mês)</label><input id="fin-parcela" type="number" inputmode="numeric" step="100" placeholder="ex.: 1500"></div>
+          <div class="field"><label for="fin-entrada">Entrada (%)</label><input id="fin-entrada" type="number" inputmode="numeric" step="5" value="20"></div>
+          <div class="field"><label for="fin-juros">Juros (% a.a.)</label><input id="fin-juros" type="number" inputmode="decimal" step="0.5" value="11"></div>
+          <div class="field"><label for="fin-prazo">Prazo (meses)</label><input id="fin-prazo" type="number" inputmode="numeric" step="12" value="360"></div>
+          <label class="chk"><input id="fin-fit" type="checkbox"> Mostrar só os que cabem na parcela</label>
+          <p class="panel-note">Estimativa por Tabela Price (entrada + juros + prazo acima). É uma aproximação — sua mãe (CRECI&nbsp;SP) pode ajustar esses números pelo financiamento real.</p>
+        </div>
+      </details>
+      <details class="panel">
+        <summary>Mudança (transportadora)</summary>
+        <div class="panel-body">
+          <div class="field" style="grid-column:1 / -1;"><label for="mov-origin">Endereço de origem (de onde você sai)</label><input id="mov-origin" type="text" placeholder="ex.: Rua tal, 100, Cidade/UF"></div>
+          <p class="panel-note">Ao abrir um anúncio, mostro a <b>distância</b> da origem e uma <b>estimativa grosseira</b> de mudança. Para preço real, peça orçamento:
+            <a class="lnk" href="https://www.guiademudancas.com.br/mudancas/cidade.aspx?estado=SP&cidade=S%C3%A3o+Carlos" target="_blank" rel="noopener">Guia de Mudanças</a> ·
+            <a class="lnk" href="https://guiafix.com.br/sao-carlos-sp/carreto-e-mudanca" target="_blank" rel="noopener">GuiaFix</a> (com avaliações). Sua mãe, sendo local, pode indicar de confiança também.</p>
+        </div>
+      </details>
+    </div>
+
     <div class="legend">
       <span class="count"><b id="count">—</b> resultados</span>
       <span><span class="dot" style="background:var(--hi-tx)"></span>Score ≥ 70</span>
@@ -294,6 +337,7 @@
         </div>
         <div class="m-sub" id="m-sub"></div>
         <div class="facts" id="m-facts"></div>
+        <div class="m-move" id="m-move" hidden></div>
         <div class="bd" id="m-bd"></div>
         <a class="btn-primary" id="m-link" target="_blank" rel="noopener" hidden>Abrir anúncio no site ↗</a>
       </div>
@@ -379,8 +423,11 @@
       var q = (els[0].value || '').trim().toLowerCase();
       var maxP = num(els[1].value), minA = num(els[2].value), minB = num(els[3].value), maxCar = num(els[4].value);
       var favOnly = document.getElementById('fav-toggle').classList.contains('on');
+      var pmax = num(document.getElementById('fin-parcela').value);
+      var onlyFit = document.getElementById('fin-fit').checked;
       table.setFilter(function(row){
         if (favOnly && !row.favorite) return false;
+        if (onlyFit && pmax != null){ var pc = parcela(row.price); if (pc == null || pc > pmax) return false; }
         if (q){ var hay = ((row.title||'') + ' ' + (row.neighborhood||'') + ' ' + (row.source||'')).toLowerCase();
           if (hay.indexOf(q) === -1) return false; }
         if (maxP != null && (row.price == null || row.price > maxP)) return false;
@@ -397,6 +444,59 @@
       applyFilters();
       if (!document.getElementById('map').hidden) plotMap();
     });
+
+    // ---- financiamento (Tabela Price) + mudança ----
+    function parcela(price){
+      if (price == null) return null;
+      var ent = num(document.getElementById('fin-entrada').value); if (ent == null) ent = 20;
+      var jaa = num(document.getElementById('fin-juros').value); if (jaa == null) jaa = 11;
+      var n = num(document.getElementById('fin-prazo').value); if (n == null || n <= 0) n = 360;
+      var fin = price * (1 - ent / 100);
+      var i = Math.pow(1 + jaa / 100, 1 / 12) - 1;
+      return i <= 0 ? fin / n : fin * i / (1 - Math.pow(1 + i, -n));
+    }
+    function haversine(la1, lo1, la2, lo2){
+      var R = 6371, t = Math.PI / 180, dla = (la2 - la1) * t, dlo = (lo2 - lo1) * t;
+      var a = Math.sin(dla / 2) ** 2 + Math.cos(la1 * t) * Math.cos(la2 * t) * Math.sin(dlo / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(a));
+    }
+
+    // ---- estado compartilhado (servidor) ----
+    var SETTINGS = {};
+    var saveTimer = null;
+    function saveSettings(obj, reload){
+      Object.assign(SETTINGS, obj);
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(function(){
+        fetch('/api/settings', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(obj)})
+          .then(function(){ if (reload) loadSettings(); });
+      }, 500);
+    }
+    function loadSettings(){
+      return fetch('/api/settings').then(function(r){ return r.json(); }).then(function(s){
+        SETTINGS = s;
+        document.getElementById('fin-parcela').value = s.parcela_max || '';
+        document.getElementById('fin-entrada').value = s.entrada_pct || '20';
+        document.getElementById('fin-juros').value = s.juros_aa || '11';
+        document.getElementById('fin-prazo').value = s.prazo_meses || '360';
+        document.getElementById('mov-origin').value = s.origin || '';
+        applyFilters();
+      });
+    }
+    var FIN_KEY = {'fin-parcela': 'parcela_max', 'fin-entrada': 'entrada_pct', 'fin-juros': 'juros_aa', 'fin-prazo': 'prazo_meses'};
+    Object.keys(FIN_KEY).forEach(function(id){
+      document.getElementById(id).addEventListener('input', function(){
+        var o = {}; o[FIN_KEY[id]] = this.value; saveSettings(o);
+        applyFilters(); if (!document.getElementById('map').hidden) plotMap();
+      });
+    });
+    document.getElementById('fin-fit').addEventListener('change', function(){
+      applyFilters(); if (!document.getElementById('map').hidden) plotMap();
+    });
+    document.getElementById('mov-origin').addEventListener('change', function(){
+      saveSettings({origin: this.value}, true);  // reload p/ pegar origin_lat/lon geocodados
+    });
+    loadSettings();
     document.getElementById('clear').addEventListener('click', function(){
       els.forEach(function(el){ el.value = ''; }); table.clearFilter(); });
 
@@ -432,8 +532,10 @@
     function factsHTML(d){
       function f(k, v){ return v ? '<div class="fact"><div class="k">' + k + '</div><div class="v">' + v + '</div></div>' : ''; }
       var mn = function(v){ return v == null ? null : Math.round(v) + ' min'; };
+      var pc = parcela(d.price);
       return [
         f('Preço', moneyTxt(d.price)),
+        f('Parcela estim.', pc != null ? 'R$ ' + Math.round(pc).toLocaleString('pt-BR') + '/mês' : null),
         f('Aluguel', moneyTxt(d.rent_price, '/mês')),
         f('Condomínio', moneyTxt(d.condo_fee, '/mês')),
         f('Área', d.area_m2 != null ? Math.round(d.area_m2) + ' m²' : null),
@@ -475,6 +577,20 @@
         var fb = document.getElementById('m-fav');
         fb.textContent = d.favorite ? '★' : '☆';
         fb.classList.toggle('on', !!d.favorite);
+
+        // estimativa de mudança (se a origem foi geocodada e o imóvel tem coords)
+        var move = document.getElementById('m-move');
+        var olat = parseFloat(SETTINGS.origin_lat), olon = parseFloat(SETTINGS.origin_lon);
+        if (!isNaN(olat) && !isNaN(olon) && d.lat != null && d.lon != null){
+          var km = haversine(olat, olon, d.lat, d.lon) * 1.35;  // aprox. rodoviária
+          var low = Math.round((250 + km * 5) / 10) * 10, high = Math.round((500 + km * 12) / 10) * 10;
+          move.innerHTML = '<b>Mudança</b> &middot; ' + km.toLocaleString('pt-BR', {maximumFractionDigits: 1}) +
+            ' km da origem &middot; estimativa grosseira R$ ' + low.toLocaleString('pt-BR') + '–' +
+            high.toLocaleString('pt-BR') + ' <span class="sub">(peça orçamento real nos links do painel Mudança)</span>';
+          move.hidden = false;
+        } else {
+          move.hidden = true;
+        }
 
         photos = d.photos || []; thumbsEl.innerHTML = '';
         var empty = document.getElementById('gal-empty');
