@@ -43,7 +43,7 @@ def get_engine():
 # como create_all() não altera tabelas existentes, garantimos as colunas novas aqui.
 # (coluna, tipo SQL). Idempotente: só adiciona o que faltar.
 _SQLITE_ADDED_COLUMNS: dict[str, list[tuple[str, str]]] = {
-    "listing": [("rent_price", "FLOAT")],
+    "listing": [("rent_price", "FLOAT"), ("favorite", "BOOLEAN DEFAULT 0")],
 }
 
 

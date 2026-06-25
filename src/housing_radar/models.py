@@ -87,5 +87,6 @@ class Listing(SQLModel, table=True):
     raw: dict | None = Field(default=None, sa_column=Column(JSON))
 
     status: str = Field(default="active", index=True)  # active | archived
+    favorite: bool = Field(default=False, index=True)  # marcado por mim/minha mãe
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)

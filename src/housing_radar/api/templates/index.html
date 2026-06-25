@@ -156,8 +156,18 @@
             padding:11px 18px; border-radius:10px; font-weight:700; }
 
     /* ---- Toggle de visão + mapa ------------------------------------------- */
+    .viewbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 12px; }
+    .fav-star { color:#f5b301; }
+    .favbtn { margin-left:auto; flex:0 0 auto; background:transparent; border:1px solid var(--line);
+            border-radius:999px; width:40px; height:40px; font-size:20px; cursor:pointer;
+            color:#f5b301; line-height:1; }
+    .favbtn:hover { border-color:#f5b301; }
+    .favbtn.on { background:#f5b30122; border-color:#f5b301; }
+    .favfilter { background:var(--surface); color:var(--txt); border:1px solid var(--line);
+            border-radius:10px; padding:8px 16px; font-size:13px; font-weight:600; cursor:pointer; }
+    .favfilter.on { background:#f5b301; border-color:#f5b301; color:#3a2e00; }
     .viewtoggle { display:inline-flex; border:1px solid var(--line); border-radius:10px;
-            overflow:hidden; margin:0 0 12px; }
+            overflow:hidden; }
     .viewtoggle .vt { background:var(--surface); color:var(--mut); border:0; padding:8px 18px;
             font-weight:600; cursor:pointer; font-size:13px; }
     .viewtoggle .vt.active { background:var(--accent); color:#fff; }
@@ -253,9 +263,12 @@
       <span><span class="real">•</span> tempo real (ORS); sem marca = estimativa</span>
     </div>
 
-    <div class="viewtoggle">
-      <button id="view-table" class="vt active" type="button">Tabela</button>
-      <button id="view-map" class="vt" type="button">Mapa</button>
+    <div class="viewbar">
+      <div class="viewtoggle">
+        <button id="view-table" class="vt active" type="button">Tabela</button>
+        <button id="view-map" class="vt" type="button">Mapa</button>
+      </div>
+      <button id="fav-toggle" class="favfilter" type="button">☆ Favoritos</button>
     </div>
 
     <div id="grid"></div>
@@ -277,6 +290,7 @@
         <div class="m-head">
           <span class="score" id="m-score">—</span>
           <h2 id="m-title">—</h2>
+          <button id="m-fav" class="favbtn" type="button" title="Favoritar">☆</button>
         </div>
         <div class="m-sub" id="m-sub"></div>
         <div class="facts" id="m-facts"></div>
@@ -310,8 +324,9 @@
       var k = v >= 70 ? 'high' : (v < 45 ? 'low' : 'mid');
       return '<span class="score ' + k + '">' + Math.round(v) + '</span>'; }
     function fTitle(c){ var d = c.getData(); var t = d.title || 'Sem título';
+      var star = d.favorite ? '<span class="fav-star">★</span> ' : '';
       var dup = (d.dup_count > 1) ? '<div class="dup">também em ' + d.dup_count + ' fontes: ' + esc((d.dup_sources || []).join(', ')) + '</div>' : '';
-      return '<div class="title-main lnk">' + esc(t) + '</div>' + dup; }
+      return '<div class="title-main lnk">' + star + esc(t) + '</div>' + dup; }
     function fPrice(c){ return brl(c.getValue()); }
     function fRent(c){ var v = c.getValue(); return v == null ? DASH : brl(v) + '<span class="sub">/mês</span>'; }
     function fArea(c){ var v = c.getValue(); return v == null ? DASH : Math.round(v) + ' m²'; }
@@ -363,7 +378,9 @@
     function applyFilters(){
       var q = (els[0].value || '').trim().toLowerCase();
       var maxP = num(els[1].value), minA = num(els[2].value), minB = num(els[3].value), maxCar = num(els[4].value);
+      var favOnly = document.getElementById('fav-toggle').classList.contains('on');
       table.setFilter(function(row){
+        if (favOnly && !row.favorite) return false;
         if (q){ var hay = ((row.title||'') + ' ' + (row.neighborhood||'') + ' ' + (row.source||'')).toLowerCase();
           if (hay.indexOf(q) === -1) return false; }
         if (maxP != null && (row.price == null || row.price > maxP)) return false;
@@ -374,6 +391,12 @@
       });
     }
     els.forEach(function(el){ el.addEventListener('input', applyFilters); });
+    document.getElementById('fav-toggle').addEventListener('click', function(){
+      this.classList.toggle('on');
+      this.textContent = (this.classList.contains('on') ? '★' : '☆') + ' Favoritos';
+      applyFilters();
+      if (!document.getElementById('map').hidden) plotMap();
+    });
     document.getElementById('clear').addEventListener('click', function(){
       els.forEach(function(el){ el.value = ''; }); table.clearFilter(); });
 
@@ -395,7 +418,7 @@
     var modal = document.getElementById('modal');
     var galMain = document.getElementById('gal-main');
     var thumbsEl = document.getElementById('thumbs');
-    var photos = [], pIdx = 0;
+    var photos = [], pIdx = 0, currentId = null;
 
     function showPhoto(i){
       if (!photos.length) return;
@@ -448,6 +471,11 @@
         var link = document.getElementById('m-link');
         if (d.url){ link.href = d.url; link.hidden = false; } else link.hidden = true;
 
+        currentId = d.id;
+        var fb = document.getElementById('m-fav');
+        fb.textContent = d.favorite ? '★' : '☆';
+        fb.classList.toggle('on', !!d.favorite);
+
         photos = d.photos || []; thumbsEl.innerHTML = '';
         var empty = document.getElementById('gal-empty');
         var hasNav = photos.length > 1;
@@ -478,6 +506,21 @@
       if (e.key === 'Escape') closeModal();
       else if (e.key === 'ArrowLeft') showPhoto(pIdx - 1);
       else if (e.key === 'ArrowRight') showPhoto(pIdx + 1);
+    });
+    // favoritar/desfavoritar (compartilhado no servidor)
+    document.getElementById('m-fav').addEventListener('click', function(){
+      if (currentId == null) return;
+      var fb = this, val = !fb.classList.contains('on');
+      fetch('/api/listings/' + currentId + '/favorite', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({value: val})
+      }).then(function(r){ return r.json(); }).then(function(){
+        fb.textContent = val ? '★' : '☆'; fb.classList.toggle('on', val);
+        table.updateData([{id: currentId, favorite: val}]).then(function(){
+          var row = table.getRow(currentId);
+          if (row) row.reformat();  // re-renderiza a estrela na célula do título
+          applyFilters();
+        });
+      }).catch(function(){});
     });
 
     // ---- mapa (Leaflet) ----

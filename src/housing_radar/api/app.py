@@ -8,7 +8,7 @@ import unicodedata
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Query, Request
+from fastapi import Body, FastAPI, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -276,6 +276,18 @@ def api_listing_detail(listing_id: int) -> JSONResponse:
     data.pop("raw", None)
     data["photos"] = photos
     return JSONResponse(data)
+
+
+@app.post("/api/listings/{listing_id}/favorite")
+def api_set_favorite(listing_id: int, value: bool = Body(..., embed=True)) -> JSONResponse:
+    """Marca/desmarca favorito (compartilhado — sem login, uso pessoal V1C-68)."""
+    with session_scope() as session:
+        item = session.get(Listing, listing_id)
+        if item is None:
+            return JSONResponse({"error": "não encontrado"}, status_code=404)
+        item.favorite = value
+        session.add(item)
+    return JSONResponse({"id": listing_id, "favorite": value})
 
 
 @app.get("/", response_class=HTMLResponse)
