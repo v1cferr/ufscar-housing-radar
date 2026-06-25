@@ -240,6 +240,24 @@
     .tabulator .tabulator-col[aria-sort="descending"] .tabulator-arrow { border-bottom-color:var(--accent); }
     .tabulator-row .tabulator-responsive-collapse-toggle { background:var(--accent); }
     .tabulator .tabulator-placeholder { color:var(--mut); }
+
+    /* ---- overlay de carregamento -------------------------------------------- */
+    .results { position:relative; min-height:200px; }
+    #loading {
+      position:absolute; inset:0; z-index:5;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.9rem;
+      background:color-mix(in srgb, var(--bg) 78%, transparent);
+      backdrop-filter:blur(2px); border-radius:12px;
+    }
+    #loading[hidden] { display:none; }
+    .spinner {
+      width:34px; height:34px; border-radius:50%;
+      border:3px solid var(--line); border-top-color:var(--accent);
+      animation:spin .7s linear infinite;
+    }
+    #loading .ld-txt { color:var(--mut); font-size:.9rem; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    @media (prefers-reduced-motion:reduce) { .spinner { animation-duration:1.6s; } }
   </style>
 </head>
 <body>
@@ -283,16 +301,16 @@
           <div class="field"><label for="fin-juros">Juros (% a.a.)</label><input id="fin-juros" type="number" inputmode="decimal" step="0.5" value="11"></div>
           <div class="field"><label for="fin-prazo">Prazo (meses)</label><input id="fin-prazo" type="number" inputmode="numeric" step="12" value="360"></div>
           <label class="chk"><input id="fin-fit" type="checkbox"> Mostrar só os que cabem na parcela</label>
-          <p class="panel-note">Estimativa por Tabela Price (entrada + juros + prazo acima). É uma aproximação — sua mãe (CRECI&nbsp;SP) pode ajustar esses números pelo financiamento real.</p>
+          <p class="panel-note">Estimativa por Tabela Price (entrada + juros + prazo acima). É uma aproximação — minha mãe, corretora CRECI&nbsp;SP (a distância, em Ribeirão&nbsp;Pires), ajuda a ajustar esses números pelo financiamento real. O valor fica salvo e é compartilhado: preencha quando for discutir e limpe depois.</p>
         </div>
       </details>
       <details class="panel">
         <summary>Mudança (transportadora)</summary>
         <div class="panel-body">
-          <div class="field" style="grid-column:1 / -1;"><label for="mov-origin">Endereço de origem (de onde você sai)</label><input id="mov-origin" type="text" placeholder="ex.: Rua tal, 100, Cidade/UF"></div>
+          <div class="field" style="grid-column:1 / -1;"><label for="mov-origin">Endereço de origem (de onde os móveis saem)</label><input id="mov-origin" type="text" placeholder="ex.: Rua tal, 100, São Carlos/SP"></div>
           <p class="panel-note">Ao abrir um anúncio, mostro a <b>distância</b> da origem e uma <b>estimativa grosseira</b> de mudança. Para preço real, peça orçamento:
             <a class="lnk" href="https://www.guiademudancas.com.br/mudancas/cidade.aspx?estado=SP&cidade=S%C3%A3o+Carlos" target="_blank" rel="noopener">Guia de Mudanças</a> ·
-            <a class="lnk" href="https://guiafix.com.br/sao-carlos-sp/carreto-e-mudanca" target="_blank" rel="noopener">GuiaFix</a> (com avaliações). Sua mãe, sendo local, pode indicar de confiança também.</p>
+            <a class="lnk" href="https://guiafix.com.br/sao-carlos-sp/carreto-e-mudanca" target="_blank" rel="noopener">GuiaFix</a> (com avaliações). O endereço fica salvo e é compartilhado: preencha temporariamente para a estimativa e limpe depois.</p>
         </div>
       </details>
     </div>
@@ -314,8 +332,14 @@
       <button id="fav-toggle" class="favfilter" type="button">☆ Favoritos</button>
     </div>
 
-    <div id="grid"></div>
-    <div id="map" hidden></div>
+    <div class="results">
+      <div id="grid"></div>
+      <div id="map" hidden></div>
+      <div id="loading">
+        <div class="spinner" role="status" aria-label="Carregando"></div>
+        <div class="ld-txt">Carregando apartamentos…</div>
+      </div>
+    </div>
   </div>
 
   <div id="modal" class="modal-overlay" hidden>
@@ -504,12 +528,15 @@
     table.on('dataFiltered', function(filters, rows){ countEl.textContent = rows.length.toLocaleString('pt-BR'); });
 
     // ---- carregar dados (re-busca ao alternar agrupamento) ----
+    var loadingEl = document.getElementById('loading');
     function load(){
       var g = document.getElementById('group').checked ? '1' : '0';
+      loadingEl.hidden = false;
       fetch('/api/listings?limit=5000&group=' + g)
         .then(function(r){ return r.json(); })
-        .then(function(data){ table.setData(data).then(applyFilters); })
-        .catch(function(){ countEl.textContent = 'erro ao carregar'; });
+        .then(function(data){ return table.setData(data).then(applyFilters); })
+        .catch(function(){ countEl.textContent = 'erro ao carregar'; })
+        .finally(function(){ loadingEl.hidden = true; });
     }
     document.getElementById('group').addEventListener('change', load);
     table.on('tableBuilt', load);

@@ -125,11 +125,12 @@ depois `caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload ca
 - [x] **Mapa interativo** (Leaflet + OpenStreetMap) dos imóveis, coloridos por score, com a UFSCar marcada
 - [x] **Favoritos compartilhados** (estrela + filtro), estado no servidor (eu + mãe)
 - [x] **Simulação de financiamento** (Tabela Price) com filtro por parcela máxima
-- [x] **Estimativa de mudança** (distância origem→imóvel + ordem de grandeza; links p/ orçamento real)
+- [x] **Estimativa de mudança** (distância origem→imóvel + ordem de grandeza; links p/ orçamento real). Origem em São Carlos; o campo fica vazio por padrão, com estado compartilhado/persistente (preenche temporário, limpa depois — o domínio é público)
+- [x] **Overlay de carregamento** (spinner enquanto a lista é buscada, para não parecer um site vazio)
 - [ ] **Cardinali:** abrir páginas de detalhe p/ preencher área/bairro faltantes (~30% dos cards)
 - [ ] **Dedup entre fontes**: o mesmo imóvel aparece em VivaReal/ZAP/imovelweb (Navent) e nas imobiliárias com ids distintos — unir por endereço/atributos
 - [ ] QuintoAndar — captcha/anti-bot bloqueia até via Playwright (precisaria stealth/proxy)
 - [ ] Tempo de ônibus (GTFS São Carlos ou Google Distance Matrix)
-- [ ] Calibrar pesos do score com avaliações reais (com a mãe corretora)
+- [ ] Calibrar pesos do score com avaliações reais (com a mãe, corretora CRECI-SP, que ajuda a distância — eu visito em São Carlos, ela analisa preço/documentação/financiamento remoto)
 - [ ] Migrar SQLite → Postgres quando o volume crescer
 - [ ] Alertas de novos anúncios acima de um score
