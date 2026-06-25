@@ -124,7 +124,8 @@ depois `caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload ca
 - [x] **Modal de detalhe** com galeria de fotos (em alta resolução) e composição do score
 - [x] **Mapa interativo** (Leaflet + OpenStreetMap) dos imóveis, coloridos por score, com a UFSCar marcada
 - [x] **Favoritos compartilhados** (estrela + filtro), estado no servidor (eu + mãe)
-- [x] **Simulação de financiamento** (Tabela Price) com filtro por parcela máxima
+- [x] **Simulação de financiamento** (Tabela Price) com filtro por parcela máxima; juros ancorados em fontes oficiais do **Banco Central** (Selic + taxa média do financiamento imobiliário PF, via SGS/BCB), com botão "usar"
+- [x] **Origem por CEP** (ViaCEP): basta o CEP, sem número — resolve o endereço e geocoda (com fallback p/ bairro+cidade)
 - [x] **Estimativa de mudança** (distância origem→imóvel + ordem de grandeza; links p/ orçamento real). Origem em São Carlos; o campo fica vazio por padrão, com estado compartilhado/persistente (preenche temporário, limpa depois — o domínio é público)
 - [x] **Overlay de carregamento** (spinner enquanto a lista é buscada, para não parecer um site vazio)
 - [ ] **Cardinali:** abrir páginas de detalhe p/ preencher área/bairro faltantes (~30% dos cards)

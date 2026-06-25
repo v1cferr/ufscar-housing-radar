@@ -284,9 +284,10 @@ _DEFAULT_SETTINGS = {
     "entrada_pct": "20",    # entrada (% do valor) p/ estimar o financiamento
     "juros_aa": "11",       # juros (% ao ano)
     "prazo_meses": "360",   # prazo do financiamento (meses)
-    "origin": "",           # endereço de origem p/ estimar a mudança
+    "origin": "",           # endereço de origem (ou só o CEP) p/ estimar a mudança
     "origin_lat": "",       # lat/lon geocodados da origem (preenchidos no save)
     "origin_lon": "",
+    "origin_resolved": "",  # endereço completo resolvido a partir do CEP (confirmação)
 }
 
 
@@ -300,6 +301,20 @@ def api_get_settings() -> JSONResponse:
     return JSONResponse(out)
 
 
+@app.get("/api/rates")
+def api_rates() -> JSONResponse:
+    """Selic + taxa do financiamento imobiliário (Banco Central) p/ os juros.
+
+    Best-effort: retorna {available: false} se o BCB estiver fora do ar.
+    """
+    from housing_radar.pipeline.refs import fetch_rates
+
+    rates = fetch_rates()
+    if not rates:
+        return JSONResponse({"available": False})
+    return JSONResponse({"available": True, **rates})
+
+
 @app.post("/api/settings")
 def api_set_settings(data: dict = Body(...)) -> JSONResponse:
     """Salva (upsert) as chaves enviadas — compartilhado, sem login (uso pessoal).
@@ -307,17 +322,39 @@ def api_set_settings(data: dict = Body(...)) -> JSONResponse:
     Se 'origin' mudar, geocoda e grava origin_lat/origin_lon (p/ estimar a mudança).
     """
     # Geocoda a origem fora da sessão (Nominatim ~1s) e injeta lat/lon.
+    # Se a origem for um CEP, resolve via ViaCEP primeiro (funciona sem número).
     if "origin" in data:
         origin = (data.get("origin") or "").strip()
         if origin:
             from housing_radar.pipeline.geocode import Geocoder
+            from housing_radar.pipeline.refs import resolve_cep
 
-            coords = Geocoder().geocode(origin)
+            cep = resolve_cep(origin)
+            if cep:
+                data["origin_resolved"] = cep["address"]
+                # tenta o endereço completo; se o logradouro não casar no Nominatim,
+                # cai para bairro + cidade (sempre geocoda bem, e basta p/ a estimativa).
+                coarse = ", ".join(
+                    p for p in (cep["bairro"], cep["localidade"], cep["uf"]) if p
+                )
+                candidates = [cep["address"]]
+                if coarse and coarse != cep["address"]:
+                    candidates.append(coarse)
+            else:
+                data["origin_resolved"] = ""
+                candidates = [origin]
+            geocoder = Geocoder()
+            coords = None
+            for cand in candidates:
+                coords = geocoder.geocode(cand)
+                if coords:
+                    break
             data["origin_lat"] = str(coords[0]) if coords else ""
             data["origin_lon"] = str(coords[1]) if coords else ""
         else:
             data["origin_lat"] = ""
             data["origin_lon"] = ""
+            data["origin_resolved"] = ""
 
     with session_scope() as session:
         for key, value in data.items():

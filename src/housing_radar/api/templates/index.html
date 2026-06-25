@@ -301,13 +301,15 @@
           <div class="field"><label for="fin-juros">Juros (% a.a.)</label><input id="fin-juros" type="number" inputmode="decimal" step="0.5" value="11"></div>
           <div class="field"><label for="fin-prazo">Prazo (meses)</label><input id="fin-prazo" type="number" inputmode="numeric" step="12" value="360"></div>
           <label class="chk"><input id="fin-fit" type="checkbox"> Mostrar só os que cabem na parcela</label>
+          <p class="panel-note" id="selic-ref" hidden></p>
           <p class="panel-note">Estimativa por Tabela Price (entrada + juros + prazo acima). É uma aproximação — minha mãe, corretora CRECI&nbsp;SP (a distância, em Ribeirão&nbsp;Pires), ajuda a ajustar esses números pelo financiamento real. O valor fica salvo e é compartilhado: preencha quando for discutir e limpe depois.</p>
         </div>
       </details>
       <details class="panel">
         <summary>Mudança (transportadora)</summary>
         <div class="panel-body">
-          <div class="field" style="grid-column:1 / -1;"><label for="mov-origin">Endereço de origem (de onde os móveis saem)</label><input id="mov-origin" type="text" placeholder="ex.: Rua tal, 100, São Carlos/SP"></div>
+          <div class="field" style="grid-column:1 / -1;"><label for="mov-origin">Origem (só o CEP já funciona — sem o número)</label><input id="mov-origin" type="text" inputmode="text" placeholder="ex.: 13560-000 ou Rua tal, São Carlos/SP"></div>
+          <p class="panel-note" id="mov-resolved" hidden></p>
           <p class="panel-note">Ao abrir um anúncio, mostro a <b>distância</b> da origem e uma <b>estimativa grosseira</b> de mudança. Para preço real, peça orçamento:
             <a class="lnk" href="https://www.guiademudancas.com.br/mudancas/cidade.aspx?estado=SP&cidade=S%C3%A3o+Carlos" target="_blank" rel="noopener">Guia de Mudanças</a> ·
             <a class="lnk" href="https://guiafix.com.br/sao-carlos-sp/carreto-e-mudanca" target="_blank" rel="noopener">GuiaFix</a> (com avaliações). O endereço fica salvo e é compartilhado: preencha temporariamente para a estimativa e limpe depois.</p>
@@ -504,9 +506,47 @@
         document.getElementById('fin-juros').value = s.juros_aa || '11';
         document.getElementById('fin-prazo').value = s.prazo_meses || '360';
         document.getElementById('mov-origin').value = s.origin || '';
+        var resolved = document.getElementById('mov-resolved');
+        if (s.origin_resolved) {
+          resolved.textContent = 'Origem reconhecida: ' + s.origin_resolved;
+          resolved.hidden = false;
+        } else { resolved.hidden = true; }
         applyFilters();
       });
     }
+
+    // ---- Taxas do Banco Central (Selic + financiamento) como referência p/ os juros ----
+    function loadRates(){
+      fetch('/api/rates').then(function(r){ return r.json(); }).then(function(s){
+        var ref = document.getElementById('selic-ref');
+        if (!s || !s.available) return;
+        var bits = [];
+        if (s.financiamento != null) {
+          bits.push('Financiamento imobiliário (BCB): <b>' +
+            s.financiamento.toLocaleString('pt-BR') + '% a.a.</b>' +
+            (s.financiamento_data ? ' (' + s.financiamento_data + ')' : ''));
+        }
+        if (s.selic != null) {
+          bits.push('Selic: ' + s.selic.toLocaleString('pt-BR') + '% a.a.');
+        }
+        var html = bits.join(' &middot; ');
+        if (s.juros_sugerido != null) {
+          html += ' &middot; <a href="#" class="lnk" id="selic-use">usar ' +
+            s.juros_sugerido.toLocaleString('pt-BR') + '%</a>';
+        }
+        html += ' <span class="sub">— fonte: Banco Central</span>';
+        ref.innerHTML = html;
+        ref.hidden = false;
+        var use = document.getElementById('selic-use');
+        if (use) use.addEventListener('click', function(e){
+          e.preventDefault();
+          document.getElementById('fin-juros').value = s.juros_sugerido;
+          saveSettings({juros_aa: String(s.juros_sugerido)});
+          applyFilters(); if (!document.getElementById('map').hidden) plotMap();
+        });
+      }).catch(function(){});
+    }
+    loadRates();
     var FIN_KEY = {'fin-parcela': 'parcela_max', 'fin-entrada': 'entrada_pct', 'fin-juros': 'juros_aa', 'fin-prazo': 'prazo_meses'};
     Object.keys(FIN_KEY).forEach(function(id){
       document.getElementById(id).addEventListener('input', function(){
@@ -518,7 +558,11 @@
       applyFilters(); if (!document.getElementById('map').hidden) plotMap();
     });
     document.getElementById('mov-origin').addEventListener('change', function(){
-      saveSettings({origin: this.value}, true);  // reload p/ pegar origin_lat/lon geocodados
+      var resolved = document.getElementById('mov-resolved');
+      if (this.value.trim()) {
+        resolved.textContent = 'Resolvendo origem…'; resolved.hidden = false;
+      } else { resolved.hidden = true; }
+      saveSettings({origin: this.value}, true);  // reload p/ pegar origin_lat/lon + CEP resolvido
     });
     loadSettings();
     document.getElementById('clear').addEventListener('click', function(){
