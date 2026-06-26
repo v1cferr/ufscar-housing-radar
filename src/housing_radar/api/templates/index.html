@@ -160,6 +160,8 @@
     .bd .bdval { width:28px; text-align:right; color:var(--txt); font-variant-numeric:tabular-nums; }
     .btn-primary { display:inline-block; background:var(--accent); color:#fff; text-decoration:none;
             padding:11px 18px; border-radius:10px; font-weight:700; }
+    .m-actions { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+    .m-actions .btn { padding:11px 16px; }
 
     /* ---- Toggle de visão + mapa ------------------------------------------- */
     .viewbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 12px; }
@@ -402,8 +404,11 @@
         <div class="facts" id="m-facts"></div>
         <div class="m-move" id="m-move" hidden></div>
         <div class="bd" id="m-bd"></div>
-        <a class="btn-primary" id="m-link" target="_blank" rel="noopener" hidden>Abrir anúncio no site ↗</a>
-        <a class="lnk" id="m-perma" style="display:inline-block;margin-top:8px;">Página deste imóvel (link fixo) →</a>
+        <div class="m-actions">
+          <a class="btn-primary" id="m-link" target="_blank" rel="noopener" hidden>Abrir anúncio no site ↗</a>
+          <button class="btn" id="m-share" type="button" title="Copiar o link fixo deste imóvel para compartilhar">Copiar link</button>
+        </div>
+        <a class="lnk" id="m-perma" style="display:inline-block;margin-top:10px;">Página deste imóvel (link fixo) →</a>
       </div>
     </div>
   </div>
@@ -668,7 +673,7 @@
       }).join('');
       return rows ? '<div class="bdtitle">Composição do score (0–100)</div>' + rows : '';
     }
-    function openModal(id){
+    function openModal(id, fromHistory){
       fetch('/api/listings/' + id).then(function(r){ return r.json(); }).then(function(d){
         document.getElementById('m-title').textContent = d.title || 'Sem título';
         var sc = document.getElementById('m-score'), s = d.score;
@@ -720,9 +725,36 @@
           document.getElementById('gal-count').textContent = '';
         }
         modal.hidden = false; document.body.style.overflow = 'hidden';
+        // deep-link compartilhável: a URL passa a refletir o imóvel selecionado (?ap=ID)
+        if (!fromHistory){ try { history.pushState({ap: String(d.id)}, '', '?ap=' + d.id); } catch(e){} }
       }).catch(function(){});
     }
-    function closeModal(){ modal.hidden = true; document.body.style.overflow = ''; galMain.src = ''; }
+    function apFromUrl(){ var m = location.search.match(/[?&]ap=(\d+)/); return m ? m[1] : null; }
+    function hideModal(){ modal.hidden = true; document.body.style.overflow = ''; galMain.src = ''; currentId = null; }
+    function closeModal(){
+      hideModal();
+      if (apFromUrl()){ try { history.pushState({}, '', location.pathname); } catch(e){} }
+    }
+    // botão/voltar do navegador: sincroniza o modal com a URL (?ap=ID)
+    window.addEventListener('popstate', function(){
+      var ap = apFromUrl();
+      if (ap){ if (modal.hidden || String(currentId) !== ap) openModal(ap, true); }
+      else if (!modal.hidden) hideModal();
+    });
+    // copiar/compartilhar o link fixo do imóvel selecionado
+    var shareBtn = document.getElementById('m-share');
+    function flashShare(msg){ var old = shareBtn.textContent; shareBtn.textContent = msg;
+      setTimeout(function(){ shareBtn.textContent = old; }, 1600); }
+    shareBtn.addEventListener('click', function(){
+      if (currentId == null) return;
+      var url = location.origin + '/imovel/' + currentId;
+      var title = document.getElementById('m-title').textContent || 'Apartamento';
+      if (navigator.share){ navigator.share({title: title, url: url}).catch(function(){}); return; }
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(url).then(function(){ flashShare('Link copiado'); })
+          .catch(function(){ window.prompt('Copie o link deste imóvel:', url); });
+      } else { window.prompt('Copie o link deste imóvel:', url); }
+    });
     document.getElementById('modal-close').addEventListener('click', closeModal);
     modal.addEventListener('click', function(e){ if (e.target === modal) closeModal(); });
     document.getElementById('gal-prev').addEventListener('click', function(){ showPhoto(pIdx - 1); });
@@ -751,6 +783,8 @@
 
     // ---- mapa (Leaflet) ----
     window.openModal = openModal;  // usado pelo botão do popup do mapa
+    // se a página abriu com ?ap=ID (link compartilhado), abre direto o imóvel
+    (function(){ var ap = apFromUrl(); if (ap) openModal(ap, true); })();
     var UFSCAR = [{{ ufscar_lat }}, {{ ufscar_lon }}];
     var lmap = null, markersLayer = null;
     function scoreColor(s){ return s == null ? '#9aa3b2' : (s >= 70 ? '#2ec16a' : (s < 45 ? '#e05a5a' : '#4f8cff')); }

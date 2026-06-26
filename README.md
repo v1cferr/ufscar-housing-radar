@@ -130,9 +130,10 @@ depois `caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload ca
 - [x] **Página por imóvel** (`/imovel/{id}`): URL citável e server-rendered de um único apartamento — galeria de fotos, dados completos, descrição, composição do score, **links diretos para todas as fontes** onde ele aparece, e JSON-LD (Apartment + Offer + geo). O modal linka pra ela e o sitemap inclui todas
 - [x] **Estimativa de mudança** (distância origem→imóvel + ordem de grandeza; links p/ orçamento real). Origem em São Carlos; o campo fica vazio por padrão, com estado compartilhado/persistente (preenche temporário, limpa depois — o domínio é público)
 - [x] **Overlay de carregamento** (spinner enquanto a lista é buscada, para não parecer um site vazio)
+- [x] **Link compartilhável por imóvel**: ao selecionar um apartamento a URL vira `?ap={id}` (deep-link que reabre o mesmo card) e o modal ganha botão "Copiar link" (copia o permalink `/imovel/{id}`, ou usa o compartilhamento nativo no celular). O botão Voltar do navegador fecha o modal
 - [ ] **Cardinali:** abrir páginas de detalhe p/ preencher área/bairro faltantes (~30% dos cards)
 - [ ] **Dedup entre fontes**: o mesmo imóvel aparece em VivaReal/ZAP/imovelweb (Navent) e nas imobiliárias com ids distintos — unir por endereço/atributos
-- [ ] QuintoAndar — captcha/anti-bot bloqueia até via Playwright (precisaria stealth/proxy)
+- [ ] QuintoAndar — sem dado estruturado público (a busca não embute JSON-LD/`__NEXT_DATA__`); os resultados vêm de API interna gated (`apigw…/house-listing-search/v2/search/list`, com Bearer nos endpoints irmãos), que recusa requisição anônima (4001). Só via Playwright (deixar o JS do site fazer a chamada e raspar os cards), nos moldes do imovelweb
 - [ ] Tempo de ônibus (GTFS São Carlos ou Google Distance Matrix)
 - [ ] Calibrar pesos do score com avaliações reais (com a mãe, corretora CRECI-SP, que ajuda a distância — eu visito em São Carlos, ela analisa preço/documentação/financiamento remoto)
 - [ ] Migrar SQLite → Postgres quando o volume crescer
