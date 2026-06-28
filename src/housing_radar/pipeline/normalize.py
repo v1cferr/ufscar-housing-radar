@@ -107,6 +107,8 @@ def normalize(raw: RawListing) -> Listing:
         lat=lat,
         lon=lon,
         geocoded=lat is not None and lon is not None,
+        transacao=raw.transacao or "compra",
+        tipo_imovel=raw.tipo_imovel or "apartamento",
         description=raw.description,
         raw=raw.raw,
     )

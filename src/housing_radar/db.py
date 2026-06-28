@@ -43,7 +43,15 @@ def get_engine():
 # como create_all() não altera tabelas existentes, garantimos as colunas novas aqui.
 # (coluna, tipo SQL). Idempotente: só adiciona o que faltar.
 _SQLITE_ADDED_COLUMNS: dict[str, list[tuple[str, str]]] = {
-    "listing": [("rent_price", "FLOAT"), ("favorite", "BOOLEAN DEFAULT 0")],
+    "listing": [
+        ("rent_price", "FLOAT"),
+        ("favorite", "BOOLEAN DEFAULT 0"),
+        # Funil de decisão (V1C-68): o DEFAULT já faz o backfill das linhas
+        # existentes (acervo atual = só venda de apto -> compra/apartamento).
+        ("transacao", "VARCHAR DEFAULT 'compra'"),
+        ("tipo_imovel", "VARCHAR DEFAULT 'apartamento'"),
+        ("estrategia", "VARCHAR"),  # classificação manual; nasce nula
+    ],
 }
 
 

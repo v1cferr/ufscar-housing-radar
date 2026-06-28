@@ -13,6 +13,14 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
+# Categorização do funil de decisão habitacional (V1C-68). Dois eixos ortogonais
+# (transação x tipo de imóvel) + a classificação estratégica manual. As "abas" da
+# UI são filtros sobre esses campos, não categorias soltas.
+TRANSACOES = ("compra", "aluguel")
+TIPOS_IMOVEL = ("apartamento", "kitnet", "quarto_republica", "casa")
+ESTRATEGIAS = ("base_imediata", "ponte", "patrimonial", "descartar")
+
+
 class RawListing(BaseModel):
     """Saída de um coletor, antes da normalização do pipeline.
 
@@ -39,6 +47,10 @@ class RawListing(BaseModel):
     lat: float | None = None
     lon: float | None = None
 
+    # Categorização (quando o coletor souber; senão o normalize assume o default).
+    transacao: str | None = None  # compra | aluguel
+    tipo_imovel: str | None = None  # apartamento | kitnet | quarto_republica | casa
+
     description: str | None = None
     raw: dict | None = None
 
@@ -53,6 +65,13 @@ class Listing(SQLModel, table=True):
     source_id: str | None = Field(default=None, index=True)
     url: str | None = None
     dedupe_key: str = Field(index=True)
+
+    # Categoria / estratégia (funil de decisão — V1C-68). Valores válidos em
+    # TRANSACOES / TIPOS_IMOVEL / ESTRATEGIAS. Default compra/apartamento mantém
+    # o acervo atual (só venda de apto) coerente; as abas da UI filtram por aqui.
+    transacao: str = Field(default="compra", index=True)
+    tipo_imovel: str = Field(default="apartamento", index=True)
+    estrategia: str | None = Field(default=None, index=True)
 
     # Atributos do imóvel
     title: str | None = None
