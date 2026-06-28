@@ -190,10 +190,30 @@ def test_monthly_cost_sem_base_retorna_none():
 
 
 def test_cost_config_from_settings_le_financiamento():
-    cfg = cost_config_from_settings({"entrada_pct": "30", "juros_aa": "9.5", "prazo_meses": "240"})
+    cfg = cost_config_from_settings(
+        {"entrada_pct": "30", "juros_aa": "9.5", "prazo_meses": "240",
+         "iptu_aa": "1.2", "contas": "300"}
+    )
     assert cfg.entrada_pct == 30.0 and cfg.juros_aa == 9.5 and cfg.prazo_meses == 240
+    assert cfg.iptu_aa_pct == 1.2 and cfg.contas_mensal == 300.0
     # Vazio/ausente -> mantém defaults.
     assert cost_config_from_settings({}).entrada_pct == 20.0
+
+
+def test_apply_aba_mapeia_transacao_e_tipo():
+    from sqlmodel import select
+
+    from housing_radar.api.app import _apply_aba
+    from housing_radar.models import Listing
+
+    base = select(Listing)
+    assert _apply_aba(base, None).whereclause is None  # sem aba -> sem filtro
+    for aba in ("compra", "aluguel", "kitnet", "republica"):
+        assert _apply_aba(base, aba).whereclause is not None
+    al = str(_apply_aba(base, "aluguel").whereclause)
+    assert "transacao" in al and "tipo_imovel" in al
+    assert "tipo_imovel" in str(_apply_aba(base, "kitnet").whereclause)
+    assert "transacao" in str(_apply_aba(base, "compra").whereclause)
 
 
 def test_grupozap_parses_jsonld_apartment():

@@ -93,6 +93,8 @@ def cost_config_from_settings(settings: dict | None) -> CostConfig:
         ("entrada_pct", "entrada_pct", float),
         ("juros_aa", "juros_aa", float),
         ("prazo_meses", "prazo_meses", int),
+        ("iptu_aa", "iptu_aa_pct", float),
+        ("contas", "contas_mensal", float),
     ):
         raw = settings.get(key)
         if raw not in (None, ""):

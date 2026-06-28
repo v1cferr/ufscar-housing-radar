@@ -22,7 +22,7 @@ from sqlmodel import select
 
 from housing_radar.config import get_settings
 from housing_radar.db import init_db, session_scope
-from housing_radar.models import Listing, Setting
+from housing_radar.models import ESTRATEGIAS, Listing, Setting
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -80,10 +80,28 @@ templates.env.filters["dec_br"] = _dec_br
 # (None sempre por último; maior score/área primeiro, menor preço/tempo primeiro.)
 _SORTS = {
     "score": lambda x: (x.score is None, -(x.score or 0)),
-    "price": lambda x: (x.price is None, x.price or 0),
+    # Preço de venda; cai pro aluguel quando não há venda (anúncios de aluguel).
+    "price": lambda x: ((x.price or x.rent_price) is None, (x.price or x.rent_price) or 0),
     "car": lambda x: (x.time_car_min is None, x.time_car_min or 0),
     "area": lambda x: (x.area_m2 is None, -(x.area_m2 or 0)),
 }
+
+
+def _apply_aba(stmt, aba: str | None):
+    """Filtra pela aba do funil (V1C-68) -> (transacao, tipo_imovel). Mapa único
+    no servidor; o cliente só manda a aba. None/'todas' -> sem filtro."""
+    if aba == "compra":
+        return stmt.where(Listing.transacao == "compra")
+    if aba == "aluguel":  # apto/casa para alugar (kitnet e república têm aba própria)
+        return stmt.where(
+            Listing.transacao == "aluguel",
+            Listing.tipo_imovel.in_(("apartamento", "casa")),
+        )
+    if aba == "kitnet":
+        return stmt.where(Listing.tipo_imovel == "kitnet")
+    if aba == "republica":
+        return stmt.where(Listing.tipo_imovel == "quarto_republica")
+    return stmt
 
 # --- Dedup entre fontes (o mesmo imóvel em VivaReal/ZAP/imovelweb/imobiliária) -
 def _norm_txt(value: str | None) -> str:
@@ -182,13 +200,28 @@ def _query_listings(
     min_area: float | None = None,
     max_car_min: float | None = None,
     neighborhood: str | None = None,
+    aba: str | None = None,
+    estrategia: str | None = None,
     sort: str = "score",
 ) -> list[Listing]:
     """Lista completa (filtrada + ordenada). O fatiamento fica com quem chama."""
     with session_scope() as session:
         stmt = select(Listing).where(Listing.status == "active")
+        stmt = _apply_aba(stmt, aba)
+        if estrategia == "_ocultar_descartar":
+            stmt = stmt.where(
+                or_(Listing.estrategia.is_(None), Listing.estrategia != "descartar")
+            )
+        elif estrategia in ESTRATEGIAS:
+            stmt = stmt.where(Listing.estrategia == estrategia)
         if max_price is not None:
-            stmt = stmt.where(Listing.price <= max_price)
+            # Em abas de aluguel o "preço máx." vale sobre o aluguel mensal.
+            price_col = (
+                Listing.rent_price
+                if aba in ("aluguel", "kitnet", "republica")
+                else Listing.price
+            )
+            stmt = stmt.where(price_col <= max_price)
         if min_bedrooms is not None:
             stmt = stmt.where(Listing.bedrooms >= min_bedrooms)
         if min_area is not None:
@@ -405,6 +438,8 @@ def api_listings(
     min_area: str | None = Query(default=None),
     max_car_min: str | None = Query(default=None),
     neighborhood: str | None = Query(default=None),
+    aba: str | None = Query(default=None),
+    estrategia: str | None = Query(default=None),
     sort: str = Query(default="score"),
     group: str = Query(default="1"),
     limit: int = Query(default=5000, le=5000),
@@ -417,6 +452,8 @@ def api_listings(
         min_area=_to_float(min_area),
         max_car_min=_to_float(max_car_min),
         neighborhood=neighborhood,
+        aba=aba,
+        estrategia=estrategia,
         sort=sort,
     )
     dup_meta: dict[int, dict] = {}
@@ -454,6 +491,8 @@ _DEFAULT_SETTINGS = {
     "entrada_pct": "20",    # entrada (% do valor) p/ estimar o financiamento
     "juros_aa": "11",       # juros (% ao ano)
     "prazo_meses": "360",   # prazo do financiamento (meses)
+    "iptu_aa": "0.8",       # IPTU anual (% do valor) p/ estimar o custo mensal
+    "contas": "250",        # água+luz+internet estimadas (R$/mês), morando solo
     "origin": "",           # endereço de origem (ou só o CEP) p/ estimar a mudança
     "origin_lat": "",       # lat/lon geocodados da origem (preenchidos no save)
     "origin_lon": "",
@@ -549,6 +588,25 @@ def api_set_favorite(listing_id: int, value: bool = Body(..., embed=True)) -> JS
     return JSONResponse({"id": listing_id, "favorite": value})
 
 
+@app.post("/api/listings/{listing_id}/estrategia")
+def api_set_estrategia(
+    listing_id: int, value: str | None = Body(default=None, embed=True)
+) -> JSONResponse:
+    """Classifica a estratégia (base_imediata|ponte|patrimonial|descartar) ou limpa (null).
+
+    Classificação manual do funil de decisão (V1C-68); compartilhada, sem login.
+    """
+    if value not in (None, "", *ESTRATEGIAS):
+        return JSONResponse({"error": f"estratégia inválida: {value}"}, status_code=422)
+    with session_scope() as session:
+        item = session.get(Listing, listing_id)
+        if item is None:
+            return JSONResponse({"error": "não encontrado"}, status_code=404)
+        item.estrategia = value or None
+        session.add(item)
+    return JSONResponse({"id": listing_id, "estrategia": value or None})
+
+
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request) -> HTMLResponse:
     """Renderiza o shell; o grid (Tabulator) carrega os dados via /api/listings.
@@ -586,11 +644,12 @@ def lista(
     max_price: str | None = Query(default=None),
     min_bedrooms: str | None = Query(default=None),
     min_area: str | None = Query(default=None),
+    aba: str | None = Query(default=None),
     limit: int = Query(default=200, ge=1, le=1000),
 ) -> HTMLResponse:
     """Lista server-rendered (sem JS) — pensada para IAs e leitura direta.
 
-    Filtros por querystring: ?q=&max_price=&min_bedrooms=&min_area=&limit=.
+    Filtros por querystring: ?q=&max_price=&min_bedrooms=&min_area=&aba=&limit=.
     """
     settings = get_settings()
     base_url = settings.site_base_url.rstrip("/")
@@ -600,6 +659,7 @@ def lista(
         max_price=_to_float(max_price),
         min_bedrooms=_to_int(min_bedrooms),
         min_area=_to_float(min_area),
+        aba=aba,
     )
     return templates.TemplateResponse(
         request,
@@ -614,6 +674,7 @@ def lista(
                 "max_price": max_price or "",
                 "min_bedrooms": min_bedrooms or "",
                 "min_area": min_area or "",
+                "aba": aba or "",
                 "limit": limit,
             },
             "meta": {
