@@ -111,6 +111,47 @@ def test_score_penalizes_unknown_location():
     assert s_unlocated < 80  # não dispara para o topo
 
 
+def test_score_aluguel_usa_perfil_proprio_nao_o_piso_de_venda():
+    # Regressão (V1C-68): um aluguel de R$1500 NÃO pode cair no price_floor de
+    # venda e zerar — ele usa o perfil de aluguel (critério "rent").
+    rental = normalize(
+        RawListing(
+            source="m", source_id="al1", transacao="aluguel",
+            rent_price=1500, area_m2=55, bedrooms=2,
+        )
+    )
+    rental.dist_ufscar_km = 2.0
+    score, breakdown = score_listing(rental)
+    assert score is not None and score > 40
+    assert "rent" in breakdown["subscores"]
+    assert "price" not in breakdown["subscores"]  # nada de critério de venda
+    assert "value" not in breakdown["subscores"]  # bônus preço/aluguel é só de compra
+
+
+def test_score_aluguel_mais_barato_pontua_mais():
+    cheap = normalize(
+        RawListing(source="m", source_id="c", transacao="aluguel",
+                   rent_price=900, area_m2=55, bedrooms=2)
+    )
+    cheap.dist_ufscar_km = 2.0
+    pricey = normalize(
+        RawListing(source="m", source_id="p", transacao="aluguel",
+                   rent_price=2500, area_m2=55, bedrooms=2)
+    )
+    pricey.dist_ufscar_km = 2.0
+    s_cheap, _ = score_listing(cheap)
+    s_pricey, _ = score_listing(pricey)
+    assert s_cheap > s_pricey
+
+
+def test_score_compra_default_usa_perfil_de_venda():
+    sale = normalize(RawListing(source="m", source_id="s", price=300000, area_m2=70, bedrooms=2))
+    assert sale.transacao == "compra"  # default do normalize
+    _, breakdown = score_listing(sale)
+    assert "price" in breakdown["subscores"]
+    assert "rent" not in breakdown["subscores"]
+
+
 def test_grupozap_parses_jsonld_apartment():
     from housing_radar.collectors.grupozap import GrupoZapCollector
 
