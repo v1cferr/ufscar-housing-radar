@@ -281,6 +281,29 @@
   </header>
 
   <div class="wrap">
+    <style>
+      /* Funil de decisão (V1C-68): abas + chip de estratégia. Cores fixas p/ valer nos 2 temas. */
+      .abas{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
+      .aba{padding:8px 16px;border:1px solid rgba(127,127,127,.4);background:transparent;color:inherit;
+           border-radius:999px;cursor:pointer;font:600 14px system-ui}
+      .aba.on{background:#7c3aed;border-color:#7c3aed;color:#fff}
+      .aba .qt{opacity:.7;font-weight:500;margin-left:4px}
+      .estr{display:inline-block;padding:1px 8px;border-radius:999px;font:600 11px system-ui;white-space:nowrap;color:#fff}
+      .estr.base_imediata{background:#1f7a4d}.estr.ponte{background:#2a6bd6}
+      .estr.patrimonial{background:#7c3aed}.estr.descartar{background:#6b7280}
+      .estr-set{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:12px 0}
+      .estr-set .estr-lbl{font:600 12px system-ui;opacity:.8;margin-right:2px}
+      .estr-set button{padding:6px 10px;border:1px solid rgba(127,127,127,.4);background:transparent;
+           color:inherit;border-radius:8px;cursor:pointer;font:600 12px system-ui}
+      .estr-set button.on{background:#7c3aed;border-color:#7c3aed;color:#fff}
+      .estr-set button.clr{opacity:.7}
+    </style>
+    <nav class="abas" id="abas" aria-label="Categorias de moradia">
+      <button class="aba on" data-aba="compra" type="button">Compra<span class="qt" data-qt="compra"></span></button>
+      <button class="aba" data-aba="aluguel" type="button">Aluguel<span class="qt" data-qt="aluguel"></span></button>
+      <button class="aba" data-aba="kitnet" type="button">Kitnets<span class="qt" data-qt="kitnet"></span></button>
+      <button class="aba" data-aba="republica" type="button">Repúblicas<span class="qt" data-qt="republica"></span></button>
+    </nav>
     <div class="toolbar">
       <div class="field search">
         <label for="q">Buscar (título, bairro ou fonte)</label>
@@ -290,6 +313,16 @@
       <div class="field"><label for="min_area">Área mín. (m²)</label><input id="min_area" type="number" inputmode="numeric" step="5" placeholder="m²"></div>
       <div class="field"><label for="min_bedrooms">Quartos mín.</label><input id="min_bedrooms" type="number" inputmode="numeric" min="0" placeholder="nº"></div>
       <div class="field"><label for="max_car_min">Carro máx. (min)</label><input id="max_car_min" type="number" inputmode="numeric" min="0" placeholder="min"></div>
+      <div class="field"><label for="estrategia">Estratégia</label>
+        <select id="estrategia">
+          <option value="">Todas</option>
+          <option value="base_imediata">Base imediata</option>
+          <option value="ponte">Ponte econômica</option>
+          <option value="patrimonial">Patrimonial</option>
+          <option value="descartar">Descartar</option>
+          <option value="_ocultar_descartar">Ocultar descartados</option>
+        </select>
+      </div>
       <div class="field">
         <label>&nbsp;</label>
         <div class="actions">
@@ -309,6 +342,8 @@
           <div class="field"><label for="fin-entrada">Entrada (%)</label><input id="fin-entrada" type="number" inputmode="numeric" step="5" value="20"></div>
           <div class="field"><label for="fin-juros">Juros (% a.a.)</label><input id="fin-juros" type="number" inputmode="decimal" step="0.5" value="11"></div>
           <div class="field"><label for="fin-prazo">Prazo (meses)</label><input id="fin-prazo" type="number" inputmode="numeric" step="12" value="360"></div>
+          <div class="field"><label for="fin-iptu">IPTU (% a.a.)</label><input id="fin-iptu" type="number" inputmode="decimal" step="0.1" value="0.8"></div>
+          <div class="field"><label for="fin-contas">Contas (R$/mês)</label><input id="fin-contas" type="number" inputmode="numeric" step="50" value="250"></div>
           <label class="chk"><input id="fin-fit" type="checkbox"> Mostrar só os que cabem na parcela</label>
           <p class="panel-note" id="selic-ref" hidden></p>
           <p class="panel-note">Estimativa por Tabela Price (entrada + juros + prazo acima). É uma aproximação — minha mãe, corretora CRECI&nbsp;SP (a distância, em Ribeirão&nbsp;Pires), ajuda a ajustar esses números pelo financiamento real. O valor fica salvo e é compartilhado: preencha quando for discutir e limpe depois.</p>
@@ -404,6 +439,14 @@
         <div class="facts" id="m-facts"></div>
         <div class="m-move" id="m-move" hidden></div>
         <div class="bd" id="m-bd"></div>
+        <div class="estr-set" id="m-estr">
+          <span class="estr-lbl">Estratégia:</span>
+          <button type="button" data-estr="base_imediata">Base imediata</button>
+          <button type="button" data-estr="ponte">Ponte</button>
+          <button type="button" data-estr="patrimonial">Patrimonial</button>
+          <button type="button" data-estr="descartar">Descartar</button>
+          <button type="button" data-estr="" class="clr">Limpar</button>
+        </div>
         <div class="m-actions">
           <a class="btn-primary" id="m-link" target="_blank" rel="noopener" hidden>Abrir anúncio no site ↗</a>
           <button class="btn" id="m-share" type="button" title="Copiar o link fixo deste imóvel para compartilhar">Copiar link</button>
@@ -449,6 +492,21 @@
       var dot = (c.getData().travel_provider === 'ors') ? '<span class="real" title="tempo real (OpenRouteService)">•</span>' : '';
       return Math.round(v) + ' min' + dot; }
     function fChip(c){ return '<span class="chip">' + esc(c.getValue()) + '</span>'; }
+    // ---- funil de decisão (V1C-68): estratégia + custo mensal ----
+    var ESTR = {base_imediata:'Base imediata', ponte:'Ponte', patrimonial:'Patrimonial', descartar:'Descartar'};
+    function fEstr(c){ var v = c.getValue(); return (v && ESTR[v]) ? '<span class="estr ' + v + '">' + ESTR[v] + '</span>' : DASH; }
+    // Custo mensal estimado — espelha pipeline/cost.py, com os params do painel.
+    function custoMensal(d){
+      var iptuAa = num(document.getElementById('fin-iptu').value); if (iptuAa == null) iptuAa = 0.8;
+      var contas = num(document.getElementById('fin-contas').value); if (contas == null) contas = 250;
+      if (d.transacao === 'aluguel'){
+        if (d.rent_price == null) return null;
+        return d.rent_price + (d.condo_fee || 0) + contas;  // IPTU do aluguel = 0 (default)
+      }
+      var pc = parcela(d.price); if (pc == null) return null;
+      return pc + (d.condo_fee || 0) + (d.price || 0) * iptuAa / 100 / 12 + contas;
+    }
+    function fCusto(c){ var v = custoMensal(c.getData()); return v == null ? DASH : brl(v) + '<span class="sub">/mês</span>'; }
 
     var R = 'right', C = 'center';
     var columns = [
@@ -458,6 +516,7 @@
       {title:'Preço (R$)', field:'price', formatter:fPrice, sorter:numSort, hozAlign:R, minWidth:110, responsive:0},
       {title:'Aluguel (R$)', field:'rent_price', formatter:fRent, sorter:numSort, hozAlign:R, minWidth:110, responsive:7},
       {title:'Cond. (R$)', field:'condo_fee', formatter:fPrice, sorter:numSort, hozAlign:R, minWidth:105, responsive:8},
+      {title:'Custo mês (est.)', field:'_custo', formatter:fCusto, headerSort:false, hozAlign:R, minWidth:120, responsive:6, tooltip:'Parcela/aluguel + condomínio + IPTU + contas (params no painel Financiamento)'},
       {title:'Área (m²)', field:'area_m2', formatter:fArea, sorter:numSort, hozAlign:R, minWidth:95, responsive:3},
       {title:'Quartos', field:'bedrooms', formatter:fInt, sorter:numSort, hozAlign:C, minWidth:80, responsive:4},
       {title:'Banh.', field:'bathrooms', formatter:fInt, sorter:numSort, hozAlign:C, minWidth:72, responsive:9},
@@ -466,6 +525,7 @@
       {title:'A pé (min)', field:'time_walk_min', formatter:fMin, sorter:numSort, hozAlign:R, minWidth:95, responsive:10},
       {title:'Bici (min)', field:'time_bike_min', formatter:fMin, sorter:numSort, hozAlign:R, minWidth:95, responsive:10},
       {title:'Carro (min)', field:'time_car_min', formatter:fMin, sorter:numSort, hozAlign:R, minWidth:100, responsive:1},
+      {title:'Estratégia', field:'estrategia', formatter:fEstr, headerSort:false, hozAlign:C, minWidth:115, responsive:5},
       {title:'Fonte', field:'source', formatter:fChip, minWidth:95, responsive:5},
     ];
 
@@ -487,6 +547,16 @@
     table.on('rowClick', function(e, row){ openModal(row.getData().id); });
 
     // ---- filtros instantâneos (cliente) ----
+    var activeAba = 'compra';  // acervo atual é só compra/apartamento
+    function inAbaOf(d, aba){
+      if (aba === 'compra') return d.transacao === 'compra';
+      if (aba === 'aluguel') return d.transacao === 'aluguel' && (d.tipo_imovel === 'apartamento' || d.tipo_imovel === 'casa');
+      if (aba === 'kitnet') return d.tipo_imovel === 'kitnet';
+      if (aba === 'republica') return d.tipo_imovel === 'quarto_republica';
+      return true;
+    }
+    function inAba(d){ return inAbaOf(d, activeAba); }
+    function isAluguelAba(){ return activeAba === 'aluguel' || activeAba === 'kitnet' || activeAba === 'republica'; }
     var els = ['q','max_price','min_area','min_bedrooms','max_car_min'].map(function(i){ return document.getElementById(i); });
     function applyFilters(){
       var q = (els[0].value || '').trim().toLowerCase();
@@ -494,12 +564,17 @@
       var favOnly = document.getElementById('fav-toggle').classList.contains('on');
       var pmax = num(document.getElementById('fin-parcela').value);
       var onlyFit = document.getElementById('fin-fit').checked;
+      var estrSel = document.getElementById('estrategia').value;
+      var rentTab = isAluguelAba();
       table.setFilter(function(row){
+        if (!inAba(row)) return false;
+        if (estrSel === '_ocultar_descartar'){ if (row.estrategia === 'descartar') return false; }
+        else if (estrSel){ if (row.estrategia !== estrSel) return false; }
         if (favOnly && !row.favorite) return false;
         if (onlyFit && pmax != null){ var pc = parcela(row.price); if (pc == null || pc > pmax) return false; }
         if (q){ var hay = ((row.title||'') + ' ' + (row.neighborhood||'') + ' ' + (row.source||'')).toLowerCase();
           if (hay.indexOf(q) === -1) return false; }
-        if (maxP != null && (row.price == null || row.price > maxP)) return false;
+        if (maxP != null){ var pv = rentTab ? row.rent_price : row.price; if (pv == null || pv > maxP) return false; }
         if (minA != null && (row.area_m2 == null || row.area_m2 < minA)) return false;
         if (minB != null && (row.bedrooms == null || row.bedrooms < minB)) return false;
         if (maxCar != null && (row.time_car_min == null || row.time_car_min > maxCar)) return false;
@@ -507,6 +582,21 @@
       });
     }
     els.forEach(function(el){ el.addEventListener('input', applyFilters); });
+    document.getElementById('estrategia').addEventListener('change', applyFilters);
+    // abas: filtram por (transacao, tipo_imovel) no cliente; relabel preço/aluguel
+    (function(){
+      var maxPriceLabel = document.querySelector('label[for=max_price]');
+      document.querySelectorAll('.aba').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          document.querySelectorAll('.aba').forEach(function(b){ b.classList.remove('on'); });
+          btn.classList.add('on');
+          activeAba = btn.getAttribute('data-aba');
+          if (maxPriceLabel) maxPriceLabel.textContent = isAluguelAba() ? 'Aluguel máx. (R$)' : 'Preço máx. (R$)';
+          applyFilters(); table.redraw(true);
+          if (!document.getElementById('map').hidden) plotMap();
+        });
+      });
+    })();
     document.getElementById('fav-toggle').addEventListener('click', function(){
       this.classList.toggle('on');
       this.textContent = (this.classList.contains('on') ? '★' : '☆') + ' Favoritos';
@@ -548,6 +638,8 @@
         document.getElementById('fin-entrada').value = s.entrada_pct || '20';
         document.getElementById('fin-juros').value = s.juros_aa || '11';
         document.getElementById('fin-prazo').value = s.prazo_meses || '360';
+        document.getElementById('fin-iptu').value = s.iptu_aa || '0.8';
+        document.getElementById('fin-contas').value = s.contas || '250';
         document.getElementById('mov-origin').value = s.origin || '';
         var resolved = document.getElementById('mov-resolved');
         if (s.origin_resolved) {
@@ -590,11 +682,13 @@
       }).catch(function(){});
     }
     loadRates();
-    var FIN_KEY = {'fin-parcela': 'parcela_max', 'fin-entrada': 'entrada_pct', 'fin-juros': 'juros_aa', 'fin-prazo': 'prazo_meses'};
+    var FIN_KEY = {'fin-parcela': 'parcela_max', 'fin-entrada': 'entrada_pct', 'fin-juros': 'juros_aa',
+                   'fin-prazo': 'prazo_meses', 'fin-iptu': 'iptu_aa', 'fin-contas': 'contas'};
     Object.keys(FIN_KEY).forEach(function(id){
       document.getElementById(id).addEventListener('input', function(){
         var o = {}; o[FIN_KEY[id]] = this.value; saveSettings(o);
-        applyFilters(); if (!document.getElementById('map').hidden) plotMap();
+        applyFilters(); table.redraw(true);  // redraw recomputa a coluna "Custo mês"
+        if (!document.getElementById('map').hidden) plotMap();
       });
     });
     document.getElementById('fin-fit').addEventListener('change', function(){
@@ -609,19 +703,28 @@
     });
     loadSettings();
     document.getElementById('clear').addEventListener('click', function(){
-      els.forEach(function(el){ el.value = ''; }); table.clearFilter(); });
+      els.forEach(function(el){ el.value = ''; });
+      document.getElementById('estrategia').value = '';
+      applyFilters();  // mantém a aba ativa (clearFilter removeria o filtro de categoria)
+    });
 
     var countEl = document.getElementById('count');
     table.on('dataFiltered', function(filters, rows){ countEl.textContent = rows.length.toLocaleString('pt-BR'); });
 
     // ---- carregar dados (re-busca ao alternar agrupamento) ----
     var loadingEl = document.getElementById('loading');
+    function updateAbaCounts(data){
+      document.querySelectorAll('.qt').forEach(function(s){
+        var k = s.getAttribute('data-qt');
+        s.textContent = ' (' + data.filter(function(d){ return inAbaOf(d, k); }).length + ')';
+      });
+    }
     function load(){
       var g = document.getElementById('group').checked ? '1' : '0';
       loadingEl.hidden = false;
       fetch('/api/listings?limit=5000&group=' + g)
         .then(function(r){ return r.json(); })
-        .then(function(data){ return table.setData(data).then(applyFilters); })
+        .then(function(data){ updateAbaCounts(data); return table.setData(data).then(applyFilters); })
         .catch(function(){ countEl.textContent = 'erro ao carregar'; })
         .finally(function(){ loadingEl.hidden = true; });
     }
@@ -692,6 +795,7 @@
         var fb = document.getElementById('m-fav');
         fb.textContent = d.favorite ? '★' : '☆';
         fb.classList.toggle('on', !!d.favorite);
+        paintEstr(d.estrategia);
 
         // estimativa de mudança (se a origem foi geocodada e o imóvel tem coords)
         var move = document.getElementById('m-move');
@@ -779,6 +883,30 @@
           applyFilters();
         });
       }).catch(function(){});
+    });
+
+    // ---- classificação estratégica (compartilhada no servidor) ----
+    function paintEstr(val){
+      var v = val || '';
+      document.querySelectorAll('#m-estr button').forEach(function(b){
+        b.classList.toggle('on', v !== '' && b.getAttribute('data-estr') === v);
+      });
+    }
+    document.querySelectorAll('#m-estr button').forEach(function(b){
+      b.addEventListener('click', function(){
+        if (currentId == null) return;
+        var val = b.getAttribute('data-estr');
+        fetch('/api/listings/' + currentId + '/estrategia', {
+          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({value: val || null})
+        }).then(function(r){ return r.json(); }).then(function(res){
+          var nv = res.estrategia || null;
+          paintEstr(nv);
+          table.updateData([{id: currentId, estrategia: nv}]).then(function(){
+            var row = table.getRow(currentId); if (row) row.reformat();  // atualiza o chip na grade
+            applyFilters();
+          });
+        }).catch(function(){});
+      });
     });
 
     // ---- mapa (Leaflet) ----
