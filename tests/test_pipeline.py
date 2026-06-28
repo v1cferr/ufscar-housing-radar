@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from housing_radar.models import RawListing
+from housing_radar.pipeline.cost import cost_config_from_settings, monthly_cost, parcela_price
 from housing_radar.pipeline.normalize import normalize, parse_money
 from housing_radar.pipeline.score import score_listing
 from housing_radar.pipeline.travel import _estimate
@@ -150,6 +151,49 @@ def test_score_compra_default_usa_perfil_de_venda():
     _, breakdown = score_listing(sale)
     assert "price" in breakdown["subscores"]
     assert "rent" not in breakdown["subscores"]
+
+
+def test_parcela_price_espelha_tabela_price():
+    # 300k, entrada 20% (financia 240k), 11% a.a., 360 meses -> ~R$2.2k/mês.
+    p = parcela_price(300_000, entrada_pct=20, juros_aa=11, prazo_meses=360)
+    assert p is not None and 2000 < p < 2400
+    # Mais entrada -> parcela menor; prazo/preço inválidos -> None.
+    assert parcela_price(300_000, 50, 11, 360) < p
+    assert parcela_price(None, 20, 11, 360) is None
+    assert parcela_price(300_000, 20, 11, 0) is None
+
+
+def test_monthly_cost_compra_soma_parcela_iptu_condo_contas():
+    sale = normalize(RawListing(source="m", source_id="s", price=300_000, condo_fee=500))
+    total, bd = monthly_cost(sale)
+    assert "parcela" in bd["parts"] and "iptu" in bd["parts"]
+    assert bd["parts"]["condominio"] == 500 and bd["parts"]["contas"] == 250
+    assert total == round(sum(bd["parts"].values()), 2)
+    assert total > bd["parts"]["parcela"]  # soma > só a parcela
+
+
+def test_monthly_cost_aluguel_usa_aluguel_nao_parcela():
+    rental = normalize(
+        RawListing(source="m", source_id="al", transacao="aluguel", rent_price=1500, condo_fee=400)
+    )
+    total, bd = monthly_cost(rental)
+    assert bd["parts"]["aluguel"] == 1500
+    assert "parcela" not in bd["parts"]  # aluguel não financia
+    assert total == 1500 + 400 + 250  # aluguel + condomínio + contas (IPTU aluguel = 0 default)
+
+
+def test_monthly_cost_sem_base_retorna_none():
+    # Compra sem preço: não há parcela nem aluguel -> sem custo estimável.
+    vazio = normalize(RawListing(source="m", source_id="v", condo_fee=300))
+    total, bd = monthly_cost(vazio)
+    assert total is None and "note" in bd
+
+
+def test_cost_config_from_settings_le_financiamento():
+    cfg = cost_config_from_settings({"entrada_pct": "30", "juros_aa": "9.5", "prazo_meses": "240"})
+    assert cfg.entrada_pct == 30.0 and cfg.juros_aa == 9.5 and cfg.prazo_meses == 240
+    # Vazio/ausente -> mantém defaults.
+    assert cost_config_from_settings({}).entrada_pct == 20.0
 
 
 def test_grupozap_parses_jsonld_apartment():
