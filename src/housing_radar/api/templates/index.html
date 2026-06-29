@@ -291,6 +291,9 @@
       .estr{display:inline-block;padding:1px 8px;border-radius:999px;font:600 11px system-ui;white-space:nowrap;color:#fff}
       .estr.base_imediata{background:#1f7a4d}.estr.ponte{background:#2a6bd6}
       .estr.patrimonial{background:#7c3aed}.estr.descartar{background:#6b7280}
+      .cat{display:inline-block;padding:1px 8px;border-radius:999px;font:600 11px system-ui;white-space:nowrap;color:#fff}
+      .cat.compra{background:#b45309}.cat.aluguel{background:#0e7490}
+      .cat.kitnet{background:#9d174d}.cat.republica{background:#4338ca}
       .estr-set{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:12px 0}
       .estr-set .estr-lbl{font:600 12px system-ui;opacity:.8;margin-right:2px}
       .estr-set button{padding:6px 10px;border:1px solid rgba(127,127,127,.4);background:transparent;
@@ -299,7 +302,8 @@
       .estr-set button.clr{opacity:.7}
     </style>
     <nav class="abas" id="abas" aria-label="Categorias de moradia">
-      <button class="aba on" data-aba="compra" type="button">Compra<span class="qt" data-qt="compra"></span></button>
+      <button class="aba on" data-aba="geral" type="button">Geral<span class="qt" data-qt="geral"></span></button>
+      <button class="aba" data-aba="compra" type="button">Compra<span class="qt" data-qt="compra"></span></button>
       <button class="aba" data-aba="aluguel" type="button">Aluguel<span class="qt" data-qt="aluguel"></span></button>
       <button class="aba" data-aba="kitnet" type="button">Kitnets<span class="qt" data-qt="kitnet"></span></button>
       <button class="aba" data-aba="republica" type="button">Repúblicas<span class="qt" data-qt="republica"></span></button>
@@ -495,6 +499,15 @@
     // ---- funil de decisão (V1C-68): estratégia + custo mensal ----
     var ESTR = {base_imediata:'Base imediata', ponte:'Ponte', patrimonial:'Patrimonial', descartar:'Descartar'};
     function fEstr(c){ var v = c.getValue(); return (v && ESTR[v]) ? '<span class="estr ' + v + '">' + ESTR[v] + '</span>' : DASH; }
+    // Categoria derivada de (transacao, tipo_imovel) — mesma regra do inAbaOf. Útil na aba Geral.
+    var CAT = {compra:'Compra', aluguel:'Aluguel', kitnet:'Kitnet', republica:'República'};
+    function catKey(d){
+      if (d.tipo_imovel === 'kitnet') return 'kitnet';
+      if (d.tipo_imovel === 'quarto_republica') return 'republica';
+      if (d.transacao === 'aluguel') return 'aluguel';
+      return 'compra';
+    }
+    function fCat(c){ var k = catKey(c.getData()); return '<span class="cat ' + k + '">' + CAT[k] + '</span>'; }
     // Custo mensal estimado — espelha pipeline/cost.py, com os params do painel.
     function custoMensal(d){
       var iptuAa = num(document.getElementById('fin-iptu').value); if (iptuAa == null) iptuAa = 0.8;
@@ -512,6 +525,7 @@
     var columns = [
       {title:'Score', field:'score', formatter:fScore, hozAlign:C, sorter:numSort, width:84, responsive:0, headerSortStartingDir:'desc'},
       {title:'Apartamento', field:'title', formatter:fTitle, headerSort:false, widthGrow:3, minWidth:230, responsive:0},
+      {title:'Categoria', field:'tipo_imovel', formatter:fCat, headerSort:false, hozAlign:C, minWidth:104, responsive:4},
       {title:'Bairro', field:'neighborhood', minWidth:130, responsive:2},
       {title:'Preço (R$)', field:'price', formatter:fPrice, sorter:numSort, hozAlign:R, minWidth:110, responsive:0},
       {title:'Aluguel (R$)', field:'rent_price', formatter:fRent, sorter:numSort, hozAlign:R, minWidth:110, responsive:7},
@@ -547,8 +561,9 @@
     table.on('rowClick', function(e, row){ openModal(row.getData().id); });
 
     // ---- filtros instantâneos (cliente) ----
-    var activeAba = 'compra';  // acervo atual é só compra/apartamento
+    var activeAba = 'geral';  // landing = ranking geral por score (todas as categorias)
     function inAbaOf(d, aba){
+      if (aba === 'geral') return true;  // ranking geral: sem filtro de categoria
       if (aba === 'compra') return d.transacao === 'compra';
       if (aba === 'aluguel') return d.transacao === 'aluguel' && (d.tipo_imovel === 'apartamento' || d.tipo_imovel === 'casa');
       if (aba === 'kitnet') return d.tipo_imovel === 'kitnet';
@@ -574,7 +589,8 @@
         if (onlyFit && pmax != null){ var pc = parcela(row.price); if (pc == null || pc > pmax) return false; }
         if (q){ var hay = ((row.title||'') + ' ' + (row.neighborhood||'') + ' ' + (row.source||'')).toLowerCase();
           if (hay.indexOf(q) === -1) return false; }
-        if (maxP != null){ var pv = rentTab ? row.rent_price : row.price; if (pv == null || pv > maxP) return false; }
+        if (maxP != null){ var pv = rentTab ? row.rent_price : (row.price != null ? row.price : row.rent_price);
+          if (pv == null || pv > maxP) return false; }
         if (minA != null && (row.area_m2 == null || row.area_m2 < minA)) return false;
         if (minB != null && (row.bedrooms == null || row.bedrooms < minB)) return false;
         if (maxCar != null && (row.time_car_min == null || row.time_car_min > maxCar)) return false;
@@ -586,12 +602,17 @@
     // abas: filtram por (transacao, tipo_imovel) no cliente; relabel preço/aluguel
     (function(){
       var maxPriceLabel = document.querySelector('label[for=max_price]');
+      function priceLabel(){
+        if (activeAba === 'geral') return 'Valor máx. (R$)';  // mistura compra+aluguel
+        return isAluguelAba() ? 'Aluguel máx. (R$)' : 'Preço máx. (R$)';
+      }
+      if (maxPriceLabel) maxPriceLabel.textContent = priceLabel();  // estado inicial (aba Geral)
       document.querySelectorAll('.aba').forEach(function(btn){
         btn.addEventListener('click', function(){
           document.querySelectorAll('.aba').forEach(function(b){ b.classList.remove('on'); });
           btn.classList.add('on');
           activeAba = btn.getAttribute('data-aba');
-          if (maxPriceLabel) maxPriceLabel.textContent = isAluguelAba() ? 'Aluguel máx. (R$)' : 'Preço máx. (R$)';
+          if (maxPriceLabel) maxPriceLabel.textContent = priceLabel();
           applyFilters(); table.redraw(true);
           if (!document.getElementById('map').hidden) plotMap();
         });
