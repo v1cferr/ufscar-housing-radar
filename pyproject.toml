@@ -51,3 +51,9 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+# e2e (browser) fica fora do run padrão; rode com `uv run pytest -m e2e`
+# (precisa do extra browser: `uv sync --extra browser && uv run playwright install chromium`).
+addopts = "-m 'not e2e'"
+markers = [
+    "e2e: testes de ponta a ponta no navegador (Playwright + Chromium); opt-in via -m e2e",
+]

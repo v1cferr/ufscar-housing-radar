@@ -93,6 +93,17 @@ Copie `.env.example` para `.env` para ajustar coordenadas da UFSCar, chave do OR
 | `stats --top N` | Resumo + melhores anúncios |
 | `serve` | Sobe a API/dashboard (uvicorn) |
 
+## Testes
+
+```bash
+uv run pytest                 # unit (pipeline) — rápido, sem rede nem browser
+uv run pytest -m e2e          # e2e do dashboard (Playwright) — opt-in, sobe a API real
+```
+
+Os e2e (`tests/e2e/`) dirigem o funil no navegador (abas, ranking Geral, custo
+mensal, estratégia) num SQLite temporário semeado. Ficam **fora do run padrão**;
+exigem o extra `browser`: `uv sync --extra browser && uv run playwright install chromium`.
+
 ## Deploy (Docker + Caddy → ap.v1cferr.dev)
 
 O container escuta em `127.0.0.1:3005` e fica **atrás do Caddy** (systemd), que cuida
