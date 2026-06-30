@@ -37,6 +37,9 @@ GRUPOZAP_SITES: dict[str, dict[str, str]] = {
         "domain": "www.vivareal.com.br",
         "search": "/venda/sp/sao-carlos/apartamento_residencial/",
         "search_aluguel": "/aluguel/sp/sao-carlos/apartamento_residencial/",
+        # Kitnet/conjugado: a página usa JSON-LD @type "Product" (não "Apartment"),
+        # mas com os mesmos campos (offers/floorSize/numberOfBedrooms/address).
+        "search_kitnet": "/aluguel/sp/sao-carlos/kitnet_residencial/",
     },
     "zap": {
         "domain": "www.zapimoveis.com.br",
@@ -59,13 +62,15 @@ def _norm_city(value: str | None) -> str:
     return re.sub(r"[^a-z0-9]+", " ", stripped).strip()
 
 
-def _apartments(data) -> list[dict]:
-    """Coleta recursivamente todo objeto JSON-LD com @type 'Apartment'."""
+def _listings(data, jsonld_type: str = "Apartment") -> list[dict]:
+    """Coleta recursivamente os objetos JSON-LD do tipo dado. Apartamentos vêm como
+    'Apartment'; kitnets/conjugados vêm como 'Product' (mesmos campos: offers,
+    floorSize, numberOfBedrooms, address)."""
     out: list[dict] = []
 
     def walk(node):
         if isinstance(node, dict):
-            if node.get("@type") == "Apartment":
+            if node.get("@type") == jsonld_type:
                 out.append(node)
             for v in node.values():
                 walk(v)
@@ -78,15 +83,23 @@ def _apartments(data) -> list[dict]:
 
 
 class GrupoZapCollector(Collector):
-    def __init__(self, name: str, transacao: str = "compra") -> None:
+    def __init__(
+        self, name: str, transacao: str = "compra", tipo_imovel: str = "apartamento"
+    ) -> None:
         if name not in GRUPOZAP_SITES:
             raise ValueError(f"Site Grupo ZAP desconhecido: {name}")
         site = GRUPOZAP_SITES[name]
         settings = get_settings()
         self.name = name
         self.transacao = transacao
+        self.tipo_imovel = tipo_imovel
         self.domain = site["domain"]
-        path = site["search_aluguel"] if transacao == "aluguel" else site["search"]
+        if tipo_imovel == "kitnet":
+            path = site["search_kitnet"]
+            self.jsonld_type = "Product"  # a página de kitnet usa @type Product
+        else:
+            path = site["search_aluguel"] if transacao == "aluguel" else site["search"]
+            self.jsonld_type = "Apartment"
         self.search_url = f"https://{self.domain}{path}"
         self.timeout = settings.request_timeout
         self.target_city = "sao carlos"
@@ -105,7 +118,7 @@ class GrupoZapCollector(Collector):
             if not tag.string:
                 continue
             try:
-                items += _apartments(json.loads(tag.string))
+                items += _listings(json.loads(tag.string), self.jsonld_type)
             except (ValueError, TypeError):
                 continue
         return items
@@ -135,7 +148,7 @@ class GrupoZapCollector(Collector):
             price=None if is_rent else price,
             rent_price=price if is_rent else None,
             transacao=self.transacao,
-            tipo_imovel="apartamento",
+            tipo_imovel=self.tipo_imovel,
             area_m2=floor.get("value"),
             bedrooms=a.get("numberOfBedrooms") or a.get("numberOfRooms"),
             bathrooms=a.get("numberOfBathroomsTotal"),
@@ -177,5 +190,7 @@ class GrupoZapCollector(Collector):
         return out
 
 
-def make_grupozap(name: str, transacao: str = "compra") -> GrupoZapCollector:
-    return GrupoZapCollector(name, transacao)
+def make_grupozap(
+    name: str, transacao: str = "compra", tipo_imovel: str = "apartamento"
+) -> GrupoZapCollector:
+    return GrupoZapCollector(name, transacao, tipo_imovel)

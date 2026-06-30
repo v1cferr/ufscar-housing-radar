@@ -27,6 +27,8 @@ REMOTE_COLLECTORS: dict[str, Callable[[], Collector]] = {
     # Locação (aluguel de apartamento) — mesmo portal/imobiliária, transacao=aluguel.
     **{f"{name}_aluguel": partial(make_grupozap, name, "aluguel") for name in GRUPOZAP_SITES},
     "cardinali_aluguel": partial(CardinaliCollector, None, "aluguel"),
+    # Kitnet: só VivaReal tem página própria (JSON-LD Product). ZAP kitnet dá 404.
+    "vivareal_kitnet": partial(make_grupozap, "vivareal", "aluguel", "kitnet"),
     "imovelweb": ImovelWebCollector,
 }
 

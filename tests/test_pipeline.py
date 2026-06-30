@@ -375,6 +375,28 @@ def test_cardinali_aluguel_roteia_preco_para_rent():
     assert rl.source_id == "239433" and rl.bedrooms == 2
 
 
+def test_grupozap_kitnet_parseia_product():
+    from housing_radar.collectors.grupozap import GrupoZapCollector
+
+    # A página de kitnet do VivaReal usa @type "Product" (mesmos campos do Apartment).
+    prod = {
+        "@type": "Product",
+        "name": "Kitnet/Conjugado para alugar com 35 m², 1 quarto em Vila Brasília, São Carlos",
+        "numberOfBedrooms": 1,
+        "floorSize": {"value": 35, "unitCode": "M2"},
+        "address": {"streetAddress": "Rua X", "addressLocality": "São Carlos"},
+        "offers": {"url": "https://www.vivareal.com.br/imovel/kitnet-aluguel-RS480-id-555/", "price": 480},
+    }
+    col = GrupoZapCollector("vivareal", "aluguel", "kitnet")
+    assert col.jsonld_type == "Product" and "kitnet_residencial" in col.search_url
+    raw = col._parse(prod)
+    assert raw is not None
+    assert raw.transacao == "aluguel" and raw.tipo_imovel == "kitnet"
+    assert raw.rent_price == 480 and raw.price is None
+    assert raw.source_id == "555" and raw.bedrooms == 1 and raw.area_m2 == 35
+    assert raw.neighborhood == "Vila Brasília"
+
+
 def test_grupozap_skips_other_cities():
     from housing_radar.collectors.grupozap import GrupoZapCollector
 
