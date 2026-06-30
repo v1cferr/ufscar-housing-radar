@@ -29,8 +29,14 @@ REMOTE_COLLECTORS: dict[str, Callable[[], Collector]] = {
     **{f"{name}_aluguel": partial(make_grupozap, name, "aluguel") for name in GRUPOZAP_SITES},
     "cardinali_aluguel": partial(CardinaliCollector, None, "aluguel"),
     "chavesnamao_aluguel": ChavesNaMaoCollector,  # apartamentos p/ alugar (URL SEO)
-    # Kitnet: só VivaReal tem página própria (JSON-LD Product). ZAP kitnet dá 404.
+    "chavesnamao_casa_aluguel": partial(
+        ChavesNaMaoCollector, "/casas-para-alugar/sp-sao-carlos/", "casa"
+    ),
+    # Kitnet: VivaReal (JSON-LD Product) + Chaves na Mão (URL). ZAP kitnet dá 404.
     "vivareal_kitnet": partial(make_grupozap, "vivareal", "aluguel", "kitnet"),
+    "chavesnamao_kitnet": partial(
+        ChavesNaMaoCollector, "/kitnet-para-alugar/sp-sao-carlos/", "kitnet"
+    ),
     "imovelweb": ImovelWebCollector,
 }
 

@@ -21,8 +21,9 @@ export HR_DATABASE_URL="${HR_DATABASE_URL:-sqlite:///$(pwd)/data/housing_radar.d
 # Fontes padrão: venda (grupozap + locais) + locação (apto, kitnet, chavesnamao).
 DEFAULT_SOURCES=(
   vivareal zap cardinali
-  vivareal_aluguel zap_aluguel cardinali_aluguel chavesnamao_aluguel
-  vivareal_kitnet
+  vivareal_aluguel zap_aluguel cardinali_aluguel
+  chavesnamao_aluguel chavesnamao_casa_aluguel
+  vivareal_kitnet chavesnamao_kitnet
 )
 SOURCES=("${@:-${DEFAULT_SOURCES[@]}}")
 [ "$#" -gt 0 ] && SOURCES=("$@")
