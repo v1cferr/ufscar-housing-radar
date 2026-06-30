@@ -276,39 +276,58 @@ def test_parse_rep_price_lida_com_faixas_e_simbolos():
     assert parse_rep_price(None) is None
 
 
-def test_reps_sanca_collector_parseia_tabela(tmp_path):
+_REPS_MD = (
+    "| Area 51 | Coluna 1 | Coluna 2 | Coluna 3 | Coluna 4 | Coluna 5 | Coluna 6 |\n"
+    "| :-: | :-: | :-: | :-: | :-: | :-: | :-: |\n"
+    "| Voodoo | 0 | 9 atualmente | R$ 450,00 | 18 min da UFSCar | Calado: 1199 | @repvoodoo |\n"
+    "| Lótus | 2 | 11 | 600-650 | 5 min da USP | Lana: 1198 | @replotus |\n"
+    "\n"
+    "| Nome | nº de vagas | nº de moradoras | Preço médio | Referência | Contato | Insta |\n"
+    "| :-: | :-: | :-: | :-: | :-: | :-: | :-: |\n"
+    "| LÓTUS | 1 | 10 | R$ 500,00 | perto | Cilada: 4399 | @republicalotus |\n"
+    "| Aruêra |  |  |  |  |  |  |\n"
+    "\n"
+    "| Nome | nº de vagas | nº de moradores | Preço médio | Referência | Contato | Insta |\n"
+    "| :-: | :-: | :-: | :-: | :-: | :-: | :-: |\n"
+    "| Error 404 | 1 | 4 | R$ 600,00 | rodoviária | Daisy | @error404 |\n"
+)
+
+
+def test_reps_sanca_exclui_femininas_por_padrao(tmp_path):
     from housing_radar.collectors.reps_sanca import RepsSancaCollector
 
     md = tmp_path / "reps.md"
-    md.write_text(
-        "| Area 51 | Coluna 1 | Coluna 2 | Coluna 3 | Coluna 4 | Coluna 5 | Coluna 6 |\n"
-        "| :-: | :-: | :-: | :-: | :-: | :-: | :-: |\n"
-        "| Voodoo | 0 | 9 atualmente | R$ 450,00 | 18 min da UFSCar | Calado: 1199 | @repvoodoo |\n"
-        "| Lótus | 2 | 11 | 600-650 | 5 min da USP | Lana: 1198 | @replotus |\n"
-        "\n"
-        "| Nome | nº de vagas | nº de moradoras | Preço médio | Referência | Contato | Insta |\n"
-        "| :-: | :-: | :-: | :-: | :-: | :-: | :-: |\n"
-        "| LÓTUS | 1 | 10 | R$ 500,00 | perto | Cilada: 4399 | @republicalotus |\n"
-        "| Aruêra |  |  |  |  |  |  |\n",
-        encoding="utf-8",
-    )
+    md.write_text(_REPS_MD, encoding="utf-8")
     raws = RepsSancaCollector(md).collect()
     by_title = {r.title: r for r in raws}
 
-    # cabeçalhos (Area 51 / Nome) e separadores (:-:) NÃO viram repúblicas
-    assert len(raws) == 4
-    assert "República :-:" not in by_title and "República Area 51" not in by_title
-    # categoria e atributos fixos
+    # T1 (Area 51 = mista) e T3 ('moradores' = masculina) entram;
+    # T2 ('moradoras' = feminina) fica de fora por padrão.
+    assert set(by_title) == {"República Voodoo", "República Lótus", "República Error 404"}
+    assert "República LÓTUS" not in by_title and "República Aruêra" not in by_title
+    # gênero anotado na descrição e no raw
+    assert by_title["República Voodoo"].description.startswith("República mista")
+    assert by_title["República Error 404"].raw["genero"] == "masculina"
+    assert all(r.raw["genero"] != "feminina" for r in raws)
+    # categoria/atributos e parsing de preço (simples + faixa)
     assert all(r.transacao == "aluguel" and r.tipo_imovel == "quarto_republica" for r in raws)
-    # preço: simples e faixa (ponto médio)
     assert by_title["República Voodoo"].rent_price == 450.0
     assert by_title["República Lótus"].rent_price == 625.0
-    # lead sem preço entra (contato a perseguir), com rent_price None
-    assert by_title["República Aruêra"].rent_price is None
-    # instagram vira URL; "atualmente" some da descrição
     assert by_title["República Voodoo"].url == "https://instagram.com/repvoodoo"
-    assert "atualmente" not in (by_title["República Voodoo"].description or "")
-    # colisão de slug Lótus/LÓTUS resolvida (source_ids únicos)
+    assert "atualmente" not in by_title["República Voodoo"].description
+
+
+def test_reps_sanca_incluir_feminina_resolve_colisao_de_slug(tmp_path):
+    from housing_radar.collectors.reps_sanca import RepsSancaCollector
+
+    md = tmp_path / "reps.md"
+    md.write_text(_REPS_MD, encoding="utf-8")
+    raws = RepsSancaCollector(md, incluir_feminina=True).collect()
+
+    titles = {r.title for r in raws}
+    assert "República LÓTUS" in titles  # feminina entra com a flag
+    assert "República Aruêra" in titles  # lead sem preço entra
+    # Lótus (mista) e LÓTUS (feminina) colidem no slug -> source_ids únicos
     ids = [r.source_id for r in raws]
     assert len(set(ids)) == len(ids)
     assert "lotus" in ids and "lotus-2" in ids

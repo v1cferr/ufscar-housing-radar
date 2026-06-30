@@ -84,8 +84,12 @@ def _split_row(line: str) -> list[str]:
 class RepsSancaCollector(Collector):
     name = "reps_sanca"
 
-    def __init__(self, path: str | Path = "data/reps_sanca.md") -> None:
+    def __init__(
+        self, path: str | Path = "data/reps_sanca.md", *, incluir_feminina: bool = False
+    ) -> None:
         self.path = Path(path)
+        # O usuário (homem) não pode morar em república feminina — por padrão, fora.
+        self.incluir_feminina = incluir_feminina
 
     def collect(self, *, max_pages: int | None = None) -> list[RawListing]:
         if not self.path.exists():
@@ -93,6 +97,7 @@ class RepsSancaCollector(Collector):
 
         out: list[RawListing] = []
         seen_ids: set[str] = set()
+        genero = "mista"  # T1 ("Area 51") não rotula gênero; trato como mista/masculina
         for line in self.path.read_text(encoding="utf-8").splitlines():
             if not line.lstrip().startswith("|"):
                 continue
@@ -102,14 +107,26 @@ class RepsSancaCollector(Collector):
             if all(_SEP_RE.match(c) for c in cells if c):  # linha separadora ---
                 continue
             nome = cells[_NOME]
+            # Cabeçalho de seção: define o gênero das próximas linhas pelo rótulo.
+            # "nº de moradoras" (feminino) vs "nº de moradores" (masculino).
             if not nome or nome.lower() in _HEADER_FIRST_CELL:
+                joined = " ".join(cells).lower()
+                if "moradoras" in joined:
+                    genero = "feminina"
+                elif "moradores" in joined:
+                    genero = "masculina"
+                elif nome.lower() == "area 51":
+                    genero = "mista"
                 continue
 
-            raw = self._build(cells, nome, seen_ids)
-            out.append(raw)
+            if genero == "feminina" and not self.incluir_feminina:
+                continue
+            out.append(self._build(cells, nome, seen_ids, genero))
         return out
 
-    def _build(self, cells: list[str], nome: str, seen_ids: set[str]) -> RawListing:
+    def _build(
+        self, cells: list[str], nome: str, seen_ids: set[str], genero: str
+    ) -> RawListing:
         def cell(i: int) -> str:
             return cells[i] if i < len(cells) else ""
 
@@ -126,7 +143,7 @@ class RepsSancaCollector(Collector):
         extra, notas = cell(_EXTRA), cell(_NOTAS)
         vagas, moradores = _ocupacao(cell(_VAGAS)), _ocupacao(cell(_MORADORES))
 
-        desc_parts = []
+        desc_parts = [f"República {genero}"]
         if ref:
             desc_parts.append(f"Referência: {ref}")
         ocup = " · ".join(p for p in (
@@ -162,7 +179,7 @@ class RepsSancaCollector(Collector):
             bedrooms=1,  # quarto em república
             description=" | ".join(desc_parts) or None,
             raw={
-                "nome": nome, "vagas": vagas, "moradores": moradores,
+                "nome": nome, "genero": genero, "vagas": vagas, "moradores": moradores,
                 "preco": cell(_PRECO), "referencia": ref, "contato": contato,
                 "insta": cell(_INSTA), "extra": extra, "notas": notas,
             },
