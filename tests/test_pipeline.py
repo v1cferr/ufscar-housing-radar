@@ -239,6 +239,25 @@ def test_grupozap_parses_jsonld_apartment():
     assert raw.neighborhood == "Recreio São Judas Tadeu"
 
 
+def test_grupozap_aluguel_roteia_preco_para_rent():
+    from housing_radar.collectors.grupozap import GrupoZapCollector
+
+    apt = {
+        "@type": "Apartment",
+        "name": "Apartamento para alugar com 45 m², 2 quartos, 1 banheiro em Parque Fehr, São Carlos",
+        "url": "https://www.vivareal.com.br/imovel/foo-id-999/",
+        "numberOfBedrooms": 2,
+        "floorSize": {"value": 45},
+        "address": {"addressLocality": "São Carlos"},
+        "offers": {"url": "https://www.vivareal.com.br/imovel/aluguel-id-999/", "price": 889},
+    }
+    raw = GrupoZapCollector("vivareal", "aluguel")._parse(apt)
+    assert raw is not None
+    assert raw.transacao == "aluguel" and raw.tipo_imovel == "apartamento"
+    assert raw.rent_price == 889 and raw.price is None  # aluguel não vai pra price de venda
+    assert raw.neighborhood == "Parque Fehr"
+
+
 def test_collapse_duplicates_groups_across_sources():
     from housing_radar.api.app import _SORTS, _collapse_duplicates
 

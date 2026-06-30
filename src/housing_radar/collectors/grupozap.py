@@ -30,15 +30,18 @@ from housing_radar.models import RawListing
 
 logger = logging.getLogger(__name__)
 
-# Imobiliárias do Grupo ZAP: domínio + caminho de busca (apartamentos à venda, São Carlos).
+# Imobiliárias do Grupo ZAP: domínio + caminho de busca (apartamentos em São Carlos),
+# para venda e locação. O mesmo parser (JSON-LD Apartment) serve às duas transações.
 GRUPOZAP_SITES: dict[str, dict[str, str]] = {
     "vivareal": {
         "domain": "www.vivareal.com.br",
         "search": "/venda/sp/sao-carlos/apartamento_residencial/",
+        "search_aluguel": "/aluguel/sp/sao-carlos/apartamento_residencial/",
     },
     "zap": {
         "domain": "www.zapimoveis.com.br",
         "search": "/venda/apartamentos/sp+sao-carlos/",
+        "search_aluguel": "/aluguel/apartamentos/sp+sao-carlos/",
     },
 }
 
@@ -75,14 +78,16 @@ def _apartments(data) -> list[dict]:
 
 
 class GrupoZapCollector(Collector):
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, transacao: str = "compra") -> None:
         if name not in GRUPOZAP_SITES:
             raise ValueError(f"Site Grupo ZAP desconhecido: {name}")
         site = GRUPOZAP_SITES[name]
         settings = get_settings()
         self.name = name
+        self.transacao = transacao
         self.domain = site["domain"]
-        self.search_url = f"https://{self.domain}{site['search']}"
+        path = site["search_aluguel"] if transacao == "aluguel" else site["search"]
+        self.search_url = f"https://{self.domain}{path}"
         self.timeout = settings.request_timeout
         self.target_city = "sao carlos"
 
@@ -120,12 +125,17 @@ class GrupoZapCollector(Collector):
         floor = a.get("floorSize") or {}
         park = _PARK_RE.search(name)
 
+        is_rent = self.transacao == "aluguel"
+        price = offer.get("price")
         return RawListing(
             source=self.name,
             source_id=source_id,
             url=url,
             title=name or None,
-            price=offer.get("price"),
+            price=None if is_rent else price,
+            rent_price=price if is_rent else None,
+            transacao=self.transacao,
+            tipo_imovel="apartamento",
             area_m2=floor.get("value"),
             bedrooms=a.get("numberOfBedrooms") or a.get("numberOfRooms"),
             bathrooms=a.get("numberOfBathroomsTotal"),
@@ -167,5 +177,5 @@ class GrupoZapCollector(Collector):
         return out
 
 
-def make_grupozap(name: str) -> GrupoZapCollector:
-    return GrupoZapCollector(name)
+def make_grupozap(name: str, transacao: str = "compra") -> GrupoZapCollector:
+    return GrupoZapCollector(name, transacao)
