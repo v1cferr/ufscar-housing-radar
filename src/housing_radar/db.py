@@ -7,7 +7,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from urllib.parse import urlparse
 
-from sqlalchemy import inspect, text
+from sqlalchemy import event, inspect, text
 from sqlmodel import Session, SQLModel, create_engine
 
 # Importa os modelos para que SQLModel.metadata os conheça ao criar tabelas.
@@ -29,6 +29,16 @@ def _ensure_sqlite_dir(database_url: str) -> None:
             os.makedirs(directory, exist_ok=True)
 
 
+def _enable_wal(dbapi_conn, _record) -> None:
+    """WAL + busy_timeout: deixa a coleta no host (escrita) e o container (leitura)
+    coexistirem sem 'database is locked'. Sem isto, o journal 'delete' trava a
+    leitura durante a escrita — ver docs/coleta-cron.md."""
+    cur = dbapi_conn.cursor()
+    cur.execute("PRAGMA journal_mode=WAL")
+    cur.execute("PRAGMA busy_timeout=10000")  # 10s esperando o lock em vez de erro
+    cur.close()
+
+
 def get_engine():
     global _engine
     if _engine is None:
@@ -36,6 +46,8 @@ def get_engine():
         _ensure_sqlite_dir(settings.database_url)
         connect_args = {"check_same_thread": False} if settings.is_sqlite else {}
         _engine = create_engine(settings.database_url, echo=False, connect_args=connect_args)
+        if settings.is_sqlite:
+            event.listen(_engine, "connect", _enable_wal)
     return _engine
 
 

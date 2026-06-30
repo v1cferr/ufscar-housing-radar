@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 _BASE = "https://www.cardinali.com.br"
 _SEARCH = f"{_BASE}/comprar/Sao-Carlos/Apartamento"
+_SEARCH_ALUGUEL = f"{_BASE}/alugar/Sao-Carlos/Apartamento"
 
 
 def _num(pattern: str, text: str, cast=int):
@@ -36,7 +37,9 @@ def _num(pattern: str, text: str, cast=int):
         return None
 
 
-def _parse_card(card) -> RawListing | None:
+def _parse_card(
+    card, transacao: str = "compra", tipo_imovel: str = "apartamento"
+) -> RawListing | None:
     cod_el = card.select_one(".cod-imovel strong")
     link = card.select_one("a.carousel-cell[href]")
     titulo = card.select_one(".card-titulo")
@@ -76,12 +79,18 @@ def _parse_card(card) -> RawListing | None:
     if local:
         address = local.get_text(strip=True).split(" - ")[0].strip() or None
 
+    # "R$ 348.000,00 V" (venda) / "R$ 1.550,00 L" (locação); o normalize limpa.
+    valor = valores.get_text(" ", strip=True) if valores else None
+    is_rent = transacao == "aluguel"
     return RawListing(
         source="cardinali",
         source_id=cod_el.get_text(strip=True) if cod_el else None,
         url=url,
         title=titulo.get_text(" ", strip=True) if titulo else None,
-        price=valores.get_text(" ", strip=True) if valores else None,  # "R$ 348.000,00 V"
+        price=None if is_rent else valor,
+        rent_price=valor if is_rent else None,
+        transacao=transacao,
+        tipo_imovel=tipo_imovel,
         area_m2=area,
         bedrooms=bedrooms,
         bathrooms=bathrooms,
@@ -95,9 +104,16 @@ def _parse_card(card) -> RawListing | None:
 class CardinaliCollector(Collector):
     name = "cardinali"
 
-    def __init__(self, search_url: str | None = None) -> None:
+    def __init__(
+        self,
+        search_url: str | None = None,
+        transacao: str = "compra",
+        tipo_imovel: str = "apartamento",
+    ) -> None:
         settings = get_settings()
-        self.search_url = search_url or _SEARCH
+        self.transacao = transacao
+        self.tipo_imovel = tipo_imovel
+        self.search_url = search_url or (_SEARCH_ALUGUEL if transacao == "aluguel" else _SEARCH)
         self.timeout = settings.request_timeout
         self.user_agent = settings.user_agent
 
@@ -126,7 +142,7 @@ class CardinaliCollector(Collector):
                     break
                 new = 0
                 for card in cards:
-                    rl = _parse_card(card)
+                    rl = _parse_card(card, self.transacao, self.tipo_imovel)
                     if rl is None:
                         continue
                     key = rl.source_id or rl.url or ""

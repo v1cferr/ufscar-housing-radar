@@ -352,6 +352,29 @@ def test_reps_sanca_incluir_feminina_resolve_colisao_de_slug(tmp_path):
     assert "lotus" in ids and "lotus-2" in ids
 
 
+def test_cardinali_aluguel_roteia_preco_para_rent():
+    from bs4 import BeautifulSoup
+
+    from housing_radar.collectors.cardinali import _parse_card
+
+    html = """
+    <div class="muda_card1">
+      <div class="cod-imovel"><strong>239433</strong></div>
+      <a class="carousel-cell" href="/imovel/239433"></a>
+      <div class="card-titulo">Apartamento - Padrão</div>
+      <div class="card-valores">R$ 1.550,00 L</div>
+      <div class="imo-dad-compl">2 Dorm. 1 Banho 1 Garagem 60.00 m² A. Útil</div>
+      <div class="card-bairro-cidade-texto">Residencial Parati - São Carlos/SP</div>
+    </div>
+    """
+    card = BeautifulSoup(html, "lxml").select_one(".muda_card1")
+    rl = _parse_card(card, transacao="aluguel", tipo_imovel="apartamento")
+    assert rl is not None
+    assert rl.transacao == "aluguel" and rl.tipo_imovel == "apartamento"
+    assert rl.rent_price == "R$ 1.550,00 L" and rl.price is None  # aluguel não vira preço de venda
+    assert rl.source_id == "239433" and rl.bedrooms == 2
+
+
 def test_grupozap_skips_other_cities():
     from housing_radar.collectors.grupozap import GrupoZapCollector
 

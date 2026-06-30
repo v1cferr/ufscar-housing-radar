@@ -24,8 +24,9 @@ REMOTE_COLLECTORS: dict[str, Callable[[], Collector]] = {
     "olx": OLXCollector,
     **{name: partial(make_msys, name) for name in MSYS_SITES},
     **{name: partial(make_grupozap, name) for name in GRUPOZAP_SITES},
-    # Locação (aluguel de apartamento) — mesmo portal, transacao=aluguel.
+    # Locação (aluguel de apartamento) — mesmo portal/imobiliária, transacao=aluguel.
     **{f"{name}_aluguel": partial(make_grupozap, name, "aluguel") for name in GRUPOZAP_SITES},
+    "cardinali_aluguel": partial(CardinaliCollector, None, "aluguel"),
     "imovelweb": ImovelWebCollector,
 }
 

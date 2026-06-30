@@ -116,15 +116,28 @@ git pull
 cp .env.example .env            # ajuste HR_ORS_API_KEY etc. se quiser
 docker compose up -d --build    # app em 127.0.0.1:3005
 
-# popular a base no servidor:
-docker compose exec app housing-radar collect all
+# popular a base no servidor (imobiliárias locais podem rodar no container):
 docker compose exec app housing-radar collect roca --full --cap 500
-docker compose exec app housing-radar enrich
 docker compose exec app housing-radar refine-ors --limit 40   # tempos reais (ORS)
 ```
 
 Caddy: adicione o bloco de `Caddyfile.example` dentro do seu `*.v1cferr.dev { ... }`,
 depois `caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy`.
+
+### Coleta automática (venda + locação) — cron no **host**
+
+VivaReal/ZAP ficam atrás do Cloudflare e **barram o container** (HTTP 403 pelo
+fingerprint TLS), mas passam do host. Por isso a coleta dos portais roda no host,
+escrevendo no mesmo banco que o container serve (SQLite em **WAL** → sem
+downtime). Use o script e o cron:
+
+```bash
+scripts/collect_host.sh        # venda + locação (vivareal/zap/cardinali + *_aluguel) + enrich
+```
+
+Detalhes, exemplo de cron e o porquê: **[docs/coleta-cron.md](docs/coleta-cron.md)**.
+O mapa completo das plataformas (o que funciona, o que foi descartado e os
+próximos passos): **[docs/fontes-dados.md](docs/fontes-dados.md)**.
 
 ## Roadmap
 
@@ -133,6 +146,11 @@ depois `caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload ca
 - [x] **VivaReal + ZAP** (Grupo ZAP) via JSON-LD público (`collect vivareal|zap`)
 - [x] **Imovelweb** via Playwright (browser real passa o Cloudflare) — extra `browser`, opcional
 - [x] **+3 imobiliárias MSYS** (e2, mariaaires, center) — 9 fontes, ~3.100 anúncios
+- [x] **Funil de decisão multi-categoria** (V1C-68): abas Geral/Compra/Aluguel/Kitnets/Repúblicas, score por transação, custo mensal e classificação estratégica
+- [x] **Aluguel de apartamento** via VivaReal/ZAP/Cardinali (`*_aluguel`) — coleta no host (ver docs/coleta-cron.md)
+- [x] **Repúblicas** (planilha "Reps Sanca") via `import-reps` — só masculinas/mistas, ranqueadas por preço
+- [ ] **Kitnet + locação MSYS**: incluir as URLs `/locacao/` do sitemap (apto, casa e **kitnet**) — ver docs/fontes-dados.md
+- [ ] **Chaves na Mão** (locação): coletor HTML novo (muito inventário em SC)
 - [x] **Modal de detalhe** com galeria de fotos (em alta resolução) e composição do score
 - [x] **Mapa interativo** (Leaflet + OpenStreetMap) dos imóveis, coloridos por score, com a UFSCar marcada
 - [x] **Favoritos compartilhados** (estrela + filtro), estado no servidor (eu + mãe)

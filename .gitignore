@@ -16,6 +16,7 @@ data/*.sqlite3
 data/*.md
 data/*.csv
 data/*.tsv
+data/*.log
 exports/
 
 # Ambiente
