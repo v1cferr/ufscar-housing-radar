@@ -441,6 +441,7 @@
         </div>
         <div class="m-sub" id="m-sub"></div>
         <div class="facts" id="m-facts"></div>
+        <div class="bd" id="m-custo"></div>
         <div class="m-move" id="m-move" hidden></div>
         <div class="bd" id="m-bd"></div>
         <div class="estr-set" id="m-estr">
@@ -522,6 +523,34 @@
       return pc + (d.condo_fee || 0) + (d.price || 0) * iptuAa / 100 / 12 + contas;
     }
     function fCusto(c){ var v = custoMensal(c.getData()); return v == null ? DASH : brl(v) + '<span class="sub">/mês</span>'; }
+    // Quebra do "Custo mês" no modal — os mesmos componentes do custoMensal, com valores.
+    function custoHTML(d){
+      var iptuAa = num(document.getElementById('fin-iptu').value); if (iptuAa == null) iptuAa = 0.8;
+      var contas = num(document.getElementById('fin-contas').value); if (contas == null) contas = 250;
+      var parts = [], nota = '';
+      if (d.transacao === 'aluguel'){
+        if (d.rent_price == null) return '';
+        parts.push(['Aluguel', d.rent_price]);
+        if (d.condo_fee) parts.push(['Condomínio', d.condo_fee]);
+        if (d.tipo_imovel === 'quarto_republica') nota = 'República: valor all-in (não soma contas).';
+        else parts.push(['Contas (estim.)', contas]);
+      } else {
+        var pc = parcela(d.price); if (pc == null) return '';
+        parts.push(['Parcela (Tabela Price)', pc]);
+        if (d.condo_fee) parts.push(['Condomínio', d.condo_fee]);
+        if (d.price) parts.push(['IPTU (estim.)', d.price * iptuAa / 100 / 12]);
+        parts.push(['Contas (estim.)', contas]);
+      }
+      var total = parts.reduce(function(s, p){ return s + p[1]; }, 0);
+      var rows = parts.map(function(p){
+        return '<div class="bdrow"><span class="bdlabel">' + p[0] + '</span>' +
+               '<span class="bdval">' + brl(p[1]) + '</span></div>';
+      }).join('');
+      rows += '<div class="bdrow" style="font-weight:700;border-top:1px solid rgba(127,127,127,.3);margin-top:4px;padding-top:4px">' +
+              '<span class="bdlabel">Total</span><span class="bdval">' + brl(total) + '/mês</span></div>';
+      if (nota) rows += '<div class="m-sub" style="margin:6px 0 0">' + nota + '</div>';
+      return '<div class="bdtitle">Custo mensal estimado</div>' + rows;
+    }
 
     var R = 'right', C = 'center';
     var columns = [
@@ -815,6 +844,7 @@
         if (d.dup_count > 1) parts.push('também em ' + d.dup_count + ' fontes: ' + (d.dup_sources || []).join(', '));
         document.getElementById('m-sub').textContent = parts.join(' · ');
         document.getElementById('m-facts').innerHTML = factsHTML(d);
+        document.getElementById('m-custo').innerHTML = custoHTML(d);
         document.getElementById('m-bd').innerHTML = bdHTML(d);
         var link = document.getElementById('m-link');
         if (d.url){ link.href = d.url; link.hidden = false; } else link.hidden = true;
