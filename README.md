@@ -149,8 +149,9 @@ próximos passos): **[docs/fontes-dados.md](docs/fontes-dados.md)**.
 - [x] **Funil de decisão multi-categoria** (V1C-68): abas Geral/Compra/Aluguel/Kitnets/Repúblicas, score por transação, custo mensal e classificação estratégica
 - [x] **Aluguel de apartamento** via VivaReal/ZAP/Cardinali (`*_aluguel`) — coleta no host (ver docs/coleta-cron.md)
 - [x] **Repúblicas** (planilha "Reps Sanca") via `import-reps` — só masculinas/mistas, ranqueadas por preço
-- [ ] **Kitnet + locação MSYS**: incluir as URLs `/locacao/` do sitemap (apto, casa e **kitnet**) — ver docs/fontes-dados.md
-- [ ] **Chaves na Mão** (locação): coletor HTML novo (muito inventário em SC)
+- [x] **Kitnet** via VivaReal (JSON-LD `Product`, `vivareal_kitnet`) — preenche a aba Kitnet
+- [x] **Chaves na Mão** (locação): coletor por URL SEO (`chavesnamao_aluguel`)
+- [ ] Estender Chaves na Mão p/ casas/kitnets; ImovelWeb locação (browser) — ver docs/fontes-dados.md
 - [x] **Modal de detalhe** com galeria de fotos (em alta resolução) e composição do score
 - [x] **Mapa interativo** (Leaflet + OpenStreetMap) dos imóveis, coloridos por score, com a UFSCar marcada
 - [x] **Favoritos compartilhados** (estrela + filtro), estado no servidor (eu + mãe)

@@ -18,10 +18,11 @@ cd "$(dirname "$0")/.."
 # Banco de produção (o mesmo bind-mountado em ./data e servido pelo container).
 export HR_DATABASE_URL="${HR_DATABASE_URL:-sqlite:///$(pwd)/data/housing_radar.db}"
 
-# Fontes padrão: venda (grupozap + locais) + locação (grupozap + cardinali).
+# Fontes padrão: venda (grupozap + locais) + locação (apto, kitnet, chavesnamao).
 DEFAULT_SOURCES=(
   vivareal zap cardinali
-  vivareal_aluguel zap_aluguel cardinali_aluguel
+  vivareal_aluguel zap_aluguel cardinali_aluguel chavesnamao_aluguel
+  vivareal_kitnet
 )
 SOURCES=("${@:-${DEFAULT_SOURCES[@]}}")
 [ "$#" -gt 0 ] && SOURCES=("$@")

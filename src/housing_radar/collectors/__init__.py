@@ -7,6 +7,7 @@ from functools import partial
 
 from housing_radar.collectors.base import Collector
 from housing_radar.collectors.cardinali import CardinaliCollector
+from housing_radar.collectors.chavesnamao import ChavesNaMaoCollector
 from housing_radar.collectors.grupozap import GRUPOZAP_SITES, GrupoZapCollector, make_grupozap
 from housing_radar.collectors.imovelweb import ImovelWebCollector
 from housing_radar.collectors.manual import ManualCSVCollector
@@ -27,6 +28,7 @@ REMOTE_COLLECTORS: dict[str, Callable[[], Collector]] = {
     # Locação (aluguel de apartamento) — mesmo portal/imobiliária, transacao=aluguel.
     **{f"{name}_aluguel": partial(make_grupozap, name, "aluguel") for name in GRUPOZAP_SITES},
     "cardinali_aluguel": partial(CardinaliCollector, None, "aluguel"),
+    "chavesnamao_aluguel": ChavesNaMaoCollector,  # apartamentos p/ alugar (URL SEO)
     # Kitnet: só VivaReal tem página própria (JSON-LD Product). ZAP kitnet dá 404.
     "vivareal_kitnet": partial(make_grupozap, "vivareal", "aluguel", "kitnet"),
     "imovelweb": ImovelWebCollector,
@@ -37,6 +39,7 @@ __all__ = [
     "ManualCSVCollector",
     "OLXCollector",
     "CardinaliCollector",
+    "ChavesNaMaoCollector",
     "MSYSCollector",
     "GrupoZapCollector",
     "ImovelWebCollector",

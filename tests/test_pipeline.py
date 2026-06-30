@@ -409,6 +409,30 @@ def test_grupozap_kitnet_parseia_product():
     assert raw.neighborhood == "Vila Brasília"
 
 
+def test_chavesnamao_parseia_url_do_anuncio():
+    from housing_radar.collectors.chavesnamao import parse_listing_url
+
+    u = ("/imovel/apartamento-para-alugar-2-quartos-com-garagem-"
+         "sp-sao-carlos-morada-dos-deuses-62m2-RS1700/id-42440553/")
+    rl = parse_listing_url(u)
+    assert rl is not None
+    assert rl.source == "chavesnamao" and rl.source_id == "42440553"
+    assert rl.transacao == "aluguel" and rl.tipo_imovel == "apartamento"
+    assert rl.rent_price == 1700.0 and rl.bedrooms == 2 and rl.area_m2 == 62.0
+    assert rl.neighborhood == "Morada Dos Deuses"
+    assert rl.url.startswith("https://www.chavesnamao.com.br/imovel/")
+
+    # sem área no slug (acontece) ainda parseia preço/id/bairro
+    u2 = ("/imovel/apartamento-para-alugar-3-quartos-com-garagem-"
+          "sp-sao-carlos-parque-faber-castell-i-RS3889/id-39869287/")
+    rl2 = parse_listing_url(u2)
+    assert rl2 is not None and rl2.rent_price == 3889.0 and rl2.area_m2 is None
+    assert rl2.neighborhood == "Parque Faber Castell I"
+
+    # sem id/preço -> None
+    assert parse_listing_url("/imoveis-para-alugar/sp-sao-carlos/") is None
+
+
 def test_grupozap_skips_other_cities():
     from housing_radar.collectors.grupozap import GrupoZapCollector
 
