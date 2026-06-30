@@ -11,6 +11,8 @@ __pycache__/
 
 # Dados locais / banco
 data/*.db
+data/*.db-shm
+data/*.db-wal
 data/*.sqlite
 data/*.sqlite3
 data/*.md

@@ -256,7 +256,7 @@ def test_grupozap_aluguel_roteia_preco_para_rent():
 
     apt = {
         "@type": "Apartment",
-        "name": "Apartamento para alugar com 45 m², 2 quartos, 1 banheiro em Parque Fehr, São Carlos",
+        "name": "Apartamento para alugar em Parque Fehr, São Carlos",
         "url": "https://www.vivareal.com.br/imovel/foo-id-999/",
         "numberOfBedrooms": 2,
         "floorSize": {"value": 45},
@@ -397,7 +397,7 @@ def test_grupozap_kitnet_parseia_product():
         "numberOfBedrooms": 1,
         "floorSize": {"value": 35, "unitCode": "M2"},
         "address": {"streetAddress": "Rua X", "addressLocality": "São Carlos"},
-        "offers": {"url": "https://www.vivareal.com.br/imovel/kitnet-aluguel-RS480-id-555/", "price": 480},
+        "offers": {"url": "https://www.vivareal.com.br/imovel/k-id-555/", "price": 480},
     }
     col = GrupoZapCollector("vivareal", "aluguel", "kitnet")
     assert col.jsonld_type == "Product" and "kitnet_residencial" in col.search_url
