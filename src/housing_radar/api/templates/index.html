@@ -426,7 +426,7 @@
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">
       <button class="modal-close" id="modal-close" type="button" aria-label="Fechar">✕</button>
       <div class="gallery">
-        <img class="gal-main" id="gal-main" alt="Foto do imóvel">
+        <img class="gal-main" id="gal-main" alt="Foto do imóvel" referrerpolicy="no-referrer">
         <button class="gal-nav prev" id="gal-prev" type="button" aria-label="Foto anterior">‹</button>
         <button class="gal-nav next" id="gal-next" type="button" aria-label="Próxima foto">›</button>
         <div class="gal-count" id="gal-count"></div>
@@ -878,7 +878,10 @@
         if (photos.length){
           empty.hidden = true; galMain.style.display = '';
           photos.forEach(function(u, j){
-            var t = document.createElement('img'); t.src = u; t.loading = 'lazy'; t.alt = '';
+            // referrerPolicy antes do src: os CDNs (VivaReal etc.) dão 403 com
+            // Referer estrangeiro, mas 200 sem Referer (hotlink protection).
+            var t = document.createElement('img');
+            t.referrerPolicy = 'no-referrer'; t.loading = 'lazy'; t.alt = ''; t.src = u;
             t.addEventListener('click', function(){ showPhoto(j); });
             thumbsEl.appendChild(t);
           });
