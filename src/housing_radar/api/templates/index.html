@@ -514,6 +514,8 @@
       var contas = num(document.getElementById('fin-contas').value); if (contas == null) contas = 250;
       if (d.transacao === 'aluguel'){
         if (d.rent_price == null) return null;
+        // República: aluguel já é all-in (não soma contas estimadas).
+        if (d.tipo_imovel === 'quarto_republica') return d.rent_price + (d.condo_fee || 0);
         return d.rent_price + (d.condo_fee || 0) + contas;  // IPTU do aluguel = 0 (default)
       }
       var pc = parcela(d.price); if (pc == null) return null;

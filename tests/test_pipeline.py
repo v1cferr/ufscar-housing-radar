@@ -182,6 +182,18 @@ def test_monthly_cost_aluguel_usa_aluguel_nao_parcela():
     assert total == 1500 + 400 + 250  # aluguel + condomínio + contas (IPTU aluguel = 0 default)
 
 
+def test_monthly_cost_republica_e_all_in_sem_contas():
+    # Repúblicas: o aluguel já inclui água/luz/internet -> não soma contas estimadas.
+    rep = normalize(
+        RawListing(source="m", source_id="r", transacao="aluguel",
+                   tipo_imovel="quarto_republica", rent_price=550)
+    )
+    total, bd = monthly_cost(rep)
+    assert bd["parts"]["aluguel"] == 550
+    assert "contas" not in bd["parts"]  # all-in
+    assert total == 550
+
+
 def test_monthly_cost_sem_base_retorna_none():
     # Compra sem preço: não há parcela nem aluguel -> sem custo estimável.
     vazio = normalize(RawListing(source="m", source_id="v", condo_fee=300))

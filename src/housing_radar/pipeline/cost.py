@@ -73,7 +73,9 @@ def monthly_cost(listing: Listing, config: CostConfig | None = None) -> tuple[fl
 
     if listing.condo_fee:
         parts["condominio"] = round(listing.condo_fee, 2)
-    if cfg.contas_mensal:
+    # Repúblicas: o aluguel já é all-in (água/luz/internet, às vezes refeição) —
+    # somar contas estimadas superestimaria. Apto/kitnet pagam contas à parte.
+    if cfg.contas_mensal and listing.tipo_imovel != "quarto_republica":
         parts["contas"] = round(cfg.contas_mensal, 2)
 
     # Sem aluguel nem parcela não há custo mensal significativo a estimar.
