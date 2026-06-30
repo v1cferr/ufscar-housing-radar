@@ -51,6 +51,8 @@ def _seed(db_url: str) -> None:
         dict(source="manual", source_id="r1", title="Quarto em república mista", rent_price=650,
              area_m2=14, bedrooms=1, neighborhood="Vila Prado",
              transacao="aluguel", tipo_imovel="quarto_republica"),
+        dict(source="manual", source_id="r2", title="República mais barata", rent_price=420,
+             bedrooms=1, transacao="aluguel", tipo_imovel="quarto_republica"),
     ]
     with session_scope() as session:
         for row in rows:

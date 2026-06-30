@@ -607,12 +607,18 @@
         return isAluguelAba() ? 'Aluguel máx. (R$)' : 'Preço máx. (R$)';
       }
       if (maxPriceLabel) maxPriceLabel.textContent = priceLabel();  // estado inicial (aba Geral)
+      // Repúblicas não têm endereço (sem distância/score confiável) -> ranqueia por preço.
+      function sortForAba(){
+        if (activeAba === 'republica') table.setSort('rent_price', 'asc');
+        else table.setSort('score', 'desc');
+      }
       document.querySelectorAll('.aba').forEach(function(btn){
         btn.addEventListener('click', function(){
           document.querySelectorAll('.aba').forEach(function(b){ b.classList.remove('on'); });
           btn.classList.add('on');
           activeAba = btn.getAttribute('data-aba');
           if (maxPriceLabel) maxPriceLabel.textContent = priceLabel();
+          sortForAba();
           applyFilters(); table.redraw(true);
           if (!document.getElementById('map').hidden) plotMap();
         });

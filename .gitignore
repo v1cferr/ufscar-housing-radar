@@ -13,6 +13,9 @@ __pycache__/
 data/*.db
 data/*.sqlite
 data/*.sqlite3
+data/*.md
+data/*.csv
+data/*.tsv
 exports/
 
 # Ambiente

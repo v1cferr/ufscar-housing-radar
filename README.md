@@ -84,6 +84,7 @@ Copie `.env.example` para `.env` para ajustar coordenadas da UFSCar, chave do OR
 |---|---|
 | `init-db` | Cria as tabelas |
 | `import-csv PATH` | Importa anúncios manuais de um CSV |
+| `import-reps [PATH]` | Importa as repúblicas da planilha "Reps Sanca" (aluguel/quarto_republica); ranqueadas por preço |
 | `collect [all\|<fonte>]` | Coleta de uma/todas as fontes (cardinali, MSYS, vivareal, zap, olx) sem enriquecer |
 | `enrich` | Geocoda, calcula tempo até a UFSCar (estimativa) e (re)calcula o score |
 | `rescore [--backfill-rent]` | Recalcula só o score (preserva tempos do ORS); opcional: preenche aluguel de registros antigos |

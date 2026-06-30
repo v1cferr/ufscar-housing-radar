@@ -61,6 +61,21 @@ def test_rotulo_valor_max_na_aba_geral(page):
     assert "Aluguel" in page.inner_text("label[for=max_price]")
 
 
+def test_aba_republica_ordena_por_preco_asc(page):
+    # Repúblicas não têm distância/score útil -> a aba ranqueia por preço (mais barata no topo).
+    _click_aba(page, "republica")
+    rows = _visible_rows(page)
+    assert _cats(rows) == {"República"}
+
+    def rent_of(row):
+        el = row.query_selector('[tabulator-field="rent_price"]')
+        nums = "".join(ch for ch in (el.inner_text() if el else "") if ch.isdigit())
+        return int(nums) if nums else 10**9
+
+    rents = [rent_of(r) for r in rows]
+    assert rents == sorted(rents), f"República não está em preço asc: {rents}"
+
+
 def test_coluna_custo_mensal_bate_com_cost_py(page):
     # Aluguel R$1800 + condomínio 400 + contas 250 (default), IPTU aluguel = 0 -> 2450.
     _click_aba(page, "aluguel")

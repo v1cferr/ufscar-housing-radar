@@ -55,6 +55,24 @@ def import_csv(
     console.print(f"[green]CSV importado:[/green] {stats}")
 
 
+@app.command("import-reps")
+def import_reps(
+    path: str = typer.Argument("data/reps_sanca.md", help="Planilha das repúblicas (markdown)."),
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
+) -> None:
+    """Importa as repúblicas da planilha 'Reps Sanca' (aluguel/quarto_republica) e re-scoreia.
+
+    Sem geocoding (não há endereço): a aba República ranqueia por preço.
+    """
+    from housing_radar.collectors.reps_sanca import RepsSancaCollector
+
+    _setup_logging(verbose)
+    init_db()
+    stats = ingest(RepsSancaCollector(path))
+    stats.update(rescore_all())
+    console.print(f"[green]Repúblicas importadas:[/green] {stats}")
+
+
 _SOURCES_HELP = "all, " + ", ".join(REMOTE_COLLECTORS)
 
 

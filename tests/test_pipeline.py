@@ -264,6 +264,56 @@ def test_collapse_duplicates_groups_across_sources():
     assert set(meta[1]["sources"]) == {"vivareal", "zap"}
 
 
+def test_parse_rep_price_lida_com_faixas_e_simbolos():
+    from housing_radar.collectors.reps_sanca import parse_rep_price
+
+    assert parse_rep_price("R$ 450,00") == 450.0
+    assert parse_rep_price("~R$ 680") == 680.0
+    assert parse_rep_price("600-650") == 625.0  # faixa -> ponto médio
+    assert parse_rep_price("R$ 700-750") == 725.0
+    assert parse_rep_price("$450") == 450.0
+    assert parse_rep_price("") is None
+    assert parse_rep_price(None) is None
+
+
+def test_reps_sanca_collector_parseia_tabela(tmp_path):
+    from housing_radar.collectors.reps_sanca import RepsSancaCollector
+
+    md = tmp_path / "reps.md"
+    md.write_text(
+        "| Area 51 | Coluna 1 | Coluna 2 | Coluna 3 | Coluna 4 | Coluna 5 | Coluna 6 |\n"
+        "| :-: | :-: | :-: | :-: | :-: | :-: | :-: |\n"
+        "| Voodoo | 0 | 9 atualmente | R$ 450,00 | 18 min da UFSCar | Calado: 1199 | @repvoodoo |\n"
+        "| Lótus | 2 | 11 | 600-650 | 5 min da USP | Lana: 1198 | @replotus |\n"
+        "\n"
+        "| Nome | nº de vagas | nº de moradoras | Preço médio | Referência | Contato | Insta |\n"
+        "| :-: | :-: | :-: | :-: | :-: | :-: | :-: |\n"
+        "| LÓTUS | 1 | 10 | R$ 500,00 | perto | Cilada: 4399 | @republicalotus |\n"
+        "| Aruêra |  |  |  |  |  |  |\n",
+        encoding="utf-8",
+    )
+    raws = RepsSancaCollector(md).collect()
+    by_title = {r.title: r for r in raws}
+
+    # cabeçalhos (Area 51 / Nome) e separadores (:-:) NÃO viram repúblicas
+    assert len(raws) == 4
+    assert "República :-:" not in by_title and "República Area 51" not in by_title
+    # categoria e atributos fixos
+    assert all(r.transacao == "aluguel" and r.tipo_imovel == "quarto_republica" for r in raws)
+    # preço: simples e faixa (ponto médio)
+    assert by_title["República Voodoo"].rent_price == 450.0
+    assert by_title["República Lótus"].rent_price == 625.0
+    # lead sem preço entra (contato a perseguir), com rent_price None
+    assert by_title["República Aruêra"].rent_price is None
+    # instagram vira URL; "atualmente" some da descrição
+    assert by_title["República Voodoo"].url == "https://instagram.com/repvoodoo"
+    assert "atualmente" not in (by_title["República Voodoo"].description or "")
+    # colisão de slug Lótus/LÓTUS resolvida (source_ids únicos)
+    ids = [r.source_id for r in raws]
+    assert len(set(ids)) == len(ids)
+    assert "lotus" in ids and "lotus-2" in ids
+
+
 def test_grupozap_skips_other_cities():
     from housing_radar.collectors.grupozap import GrupoZapCollector
 
